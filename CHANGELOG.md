@@ -1,5 +1,10 @@
 # Cambios
 
+## Próxima versión (pendiente)
+
+- Corregir el sonido del banner en el menú HOME.
+- Corregir la vista previa de la cámara, que a veces se congela.
+
 ## 1.0.0 — primera versión
 
 - Chat con Gemini con respuestas en vivo y formato Markdown.

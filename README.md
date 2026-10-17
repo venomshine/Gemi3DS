@@ -69,6 +69,13 @@ El nivel gratuito de la API tiene límites por minuto y por día. Si se alcanzan
 
 Todo se puede hacer también con la pantalla táctil.
 
+## Problemas conocidos
+
+Se corregirán en una próxima versión:
+
+- **Sonido del menú HOME:** al seleccionar Gemi3DS en el menú de la consola suena un tono distinto al previsto, parecido a un teléfono.
+- **Cámara congelada:** al abrir la cámara para hacer una foto, a veces la imagen se queda congelada en el primer fotograma tras unos segundos. La app sigue funcionando: puedes cerrar la cámara, cambiarla o hacer la foto, pero la vista previa no se actualiza. Mientras tanto, puedes hacer la foto con la cámara de la 3DS y elegirla en **+ → Fotos de la consola**.
+
 ## Errores y sugerencias
 
 ¿Algo falla o se ve raro? Abre un [issue](https://github.com/venomshine/Gemi3DS/issues) o escríbeme en [Discord](https://discord.com/invite/yVKp8JwV4e). Si quieres apoyar el proyecto: [Ko-fi](https://ko-fi.com/venomshine).
@@ -116,6 +123,8 @@ Para añadir o corregir traducciones, edita `tools/i18n_tr.py` y ejecuta `python
 **Setup:** the app shows a QR code. Scan it with your phone (same Wi-Fi network), create a free API key in Google AI Studio, paste it on the page and you're done. The key is stored only on your SD card.
 
 **Build:** devkitPro with `3ds-dev 3ds-curl 3ds-mbedtls`, then `make` (or `make cia` with bannertool and makerom).
+
+Known issues (to be fixed in the next version): the HOME menu banner plays the wrong sound, and the camera preview can freeze after a few seconds (use + → Console photos as a workaround).
 
 Bugs and ideas: [issues](https://github.com/venomshine/Gemi3DS/issues) or [Discord](https://discord.com/invite/yVKp8JwV4e).
 
