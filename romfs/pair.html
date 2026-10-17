@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title data-i="title">Vincular Gemi3DS</title>
+<style>
+:root{--bg:#131314;--card:#1e1f20;--card2:#282a2c;--t:#e3e3e3;--t2:#a8acaf;--acc:#8ab4f8;--ok:#81c995;--err:#f28b82}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--t);
+background:radial-gradient(1200px 500px at 50% -10%,rgba(71,150,227,.28),transparent 60%),radial-gradient(900px 400px at 100% 110%,rgba(202,102,115,.22),transparent 60%),var(--bg);
+display:flex;justify-content:center;padding:28px 16px}
+main{width:100%;max-width:440px}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.logo svg{width:40px;height:40px;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+h1{font-size:28px;margin:0;background:linear-gradient(90deg,#4796e3,#9177c7,#ca6673);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--t2);margin:4px 0 22px;line-height:1.45}
+.card{background:var(--card);border-radius:20px;padding:18px;margin-bottom:14px}
+.step{display:flex;gap:10px;align-items:center;margin-bottom:10px;font-weight:600}
+.n{width:26px;height:26px;border-radius:50%;background:var(--card2);color:var(--acc);display:grid;place-items:center;font-size:14px;flex:none}
+.hint{color:var(--t2);font-size:14px;line-height:1.45;margin:8px 0 0}
+a.btn,button{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;border:0;border-radius:999px;padding:14px 18px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer}
+a.btn{background:#fff;color:#1f1f1f}
+button.main{background:linear-gradient(90deg,#4796e3,#9177c7);color:#fff;margin-top:6px}
+button.main:disabled{opacity:.5}
+.row{display:flex;gap:8px}
+input{width:100%;background:var(--card2);border:1px solid #3c4043;color:var(--t);border-radius:14px;padding:13px 14px;font-size:16px;outline:none}
+input:focus{border-color:var(--acc)}
+button.sm{width:auto;background:var(--card2);color:var(--acc);padding:0 16px;border-radius:14px}
+#st{display:none;text-align:center;padding:22px 10px}
+.spin{width:38px;height:38px;border:4px solid var(--card2);border-top-color:var(--acc);border-radius:50%;margin:0 auto 12px;animation:spin 1s linear infinite}
+.ok{color:var(--ok)} .err{color:var(--err)}
+.big{font-size:20px;font-weight:700;margin:6px 0}
+footer{color:#6f7376;font-size:12px;text-align:center;margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+ <div class="logo">
+  <svg viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4796e3"/><stop offset=".55" stop-color="#9177c7"/><stop offset="1" stop-color="#ca6673"/></linearGradient></defs>
+  <path fill="url(#g)" d="M50 2C53 30 70 47 98 50C70 53 53 70 50 98C47 70 30 53 2 50C30 47 47 30 50 2Z"/></svg>
+  <h1>Gemi3DS</h1>
+ </div>
+ <p class="sub" data-i="sub">Vincula tu Nintendo 3DS con Gemini. Solo tienes que hacerlo una vez.</p>
+
+ <div id="form">
+  <div class="card">
+   <div class="step"><span class="n">1</span><span data-i="s1">Inicia sesión con Google y crea tu clave</span></div>
+   <a class="btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" data-i="open">Abrir Google AI Studio</a>
+   <p class="hint" data-i="h1">Entra con tu cuenta de Google, pulsa <b>«Create API key»</b> (Crear clave de API) y cópiala. Es gratis.</p>
+  </div>
+
+  <div class="card">
+   <div class="step"><span class="n">2</span><span data-i="s2">Pega tu clave aquí</span></div>
+   <div class="row">
+    <input id="key" placeholder="AIza..." autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button class="sm" id="paste" type="button" data-i="paste">Pegar</button>
+   </div>
+  </div>
+
+  <div class="card">
+   <div class="step"><span class="n">3</span><span data-i="s3">¿Cómo quieres que te llame?</span></div>
+   <input id="name" placeholder="Tu nombre (opcional)" data-ip="name" maxlength="40">
+   <button class="main" id="go" data-i="go">Conectar con mi 3DS</button>
+  </div>
+ </div>
+
+ <div class="card" id="st">
+  <div class="spin" id="sp"></div>
+  <div class="big" id="sm">Comprobando la clave…</div>
+  <div class="hint" id="sd">Tu 3DS está verificando la clave con Google.</div>
+  <button class="main" id="retry" style="display:none" data-i="retry">Intentar de nuevo</button>
+ </div>
+
+ <footer data-i="foot">Tu clave se guarda únicamente en la tarjeta SD de tu consola.<br>Puedes revocarla cuando quieras en Google AI Studio.</footer>
+</main>
+<script>
+var T={
+en:{title:'Link Gemi3DS',sub:'Link your Nintendo 3DS with Gemini. You only need to do this once.',s1:'Sign in with Google and create your key',
+open:'Open Google AI Studio',h1:'Sign in with your Google account, tap <b>“Create API key”</b> and copy it. It\'s free.',s2:'Paste your key here',
+paste:'Paste',s3:'What should I call you?',name:'Your name (optional)',go:'Connect to my 3DS',retry:'Try again',
+foot:'Your key is stored only on your console\'s SD card.<br>You can revoke it anytime in Google AI Studio.',
+ok:'All set! ✨',okd:'You can now use Gemini on your 3DS. You can close this page.',chk:'Checking the key…',
+chkd:'Your 3DS is verifying the key with Google.',fail:'Could not connect',nocon:'No connection to the 3DS',
+nocond:'Make sure the phone and the console are on the same Wi‑Fi network.'},
+ja:{title:'Gemi3DSを連携',sub:'Nintendo 3DSとGeminiを連携します。一度だけで大丈夫です。',s1:'Googleでログインしてキーを作成',
+open:'Google AI Studioを開く',h1:'Googleアカウントでログインし、<b>「Create API key」</b>(APIキーを作成)を押してコピーします。無料です。',
+s2:'ここにキーを貼り付け',paste:'貼り付け',s3:'何とお呼びしましょうか?',name:'名前(任意)',go:'3DSに接続',retry:'もう一度試す',
+foot:'キーは本体のSDカードにのみ保存されます。<br>Google AI Studioでいつでも無効にできます。',
+ok:'準備完了!✨',okd:'3DSでGeminiを使えます。このページは閉じて大丈夫です。',chk:'キーを確認中…',
+chkd:'3DSがGoogleでキーを確認しています。',fail:'接続できませんでした',nocon:'3DSに接続できません',
+nocond:'スマホと本体が同じWi‑Fiにつながっているか確認してください。'},
+es:{ok:'¡Listo! ✨',okd:'Ya puedes usar Gemini en tu 3DS. Puedes cerrar esta página.',chk:'Comprobando la clave…',
+chkd:'Tu 3DS está verificando la clave con Google.',fail:'No se pudo conectar',nocon:'Sin conexión con la 3DS',
+nocond:'Comprueba que el teléfono y la consola estén en la misma red Wi‑Fi.'}};
+var LG='es';
+function L(k){return (T[LG]&&T[LG][k])||T.es[k]||k}
+function applyLang(l){if(!T[l])return;LG=l;document.documentElement.lang=l;if(l=='es')return;
+ document.querySelectorAll('[data-i]').forEach(function(e){var v=T[l][e.getAttribute('data-i')];if(v)e.innerHTML=v});
+ document.querySelectorAll('[data-ip]').forEach(function(e){var v=T[l][e.getAttribute('data-ip')];if(v)e.placeholder=v});
+ document.title=T[l].title;}
+fetch('/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){if(j.l)applyLang(j.l)}).catch(function(){});
+var $=function(i){return document.getElementById(i)};
+if(!(navigator.clipboard&&navigator.clipboard.readText))$('paste').style.display='none';
+$('paste').onclick=function(){navigator.clipboard.readText().then(function(t){$('key').value=t.trim()}).catch(function(){})};
+try{var n=localStorage.getItem('g3name');if(n)$('name').value=n}catch(e){}
+function show(state,title,detail){
+ $('form').style.display=state=='form'?'block':'none';
+ $('st').style.display=state=='form'?'none':'block';
+ $('sp').style.display=state=='wait'?'block':'none';
+ $('sm').textContent=title;$('sm').className='big '+(state=='ok'?'ok':state=='err'?'err':'');
+ $('sd').textContent=detail||'';
+ $('retry').style.display=state=='err'?'flex':'none';
+}
+function poll(){
+ fetch('/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+  if(j.s==2){show('ok',L('ok'),L('okd'))}
+  else if(j.s==3){show('err',L('fail'),j.m)}
+  else setTimeout(poll,1000);
+ }).catch(function(){setTimeout(poll,1500)});
+}
+$('retry').onclick=function(){show('form')};
+$('go').onclick=function(){
+ var k=$('key').value.trim(),nm=$('name').value.trim();
+ if(k.length<20){$('key').focus();$('key').style.borderColor='#f28b82';return}
+ try{localStorage.setItem('g3name',nm)}catch(e){}
+ show('wait',L('chk'),L('chkd'));
+ fetch('/pair',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+  body:'key='+encodeURIComponent(k)+'&name='+encodeURIComponent(nm)})
+ .then(function(){setTimeout(poll,800)})
+ .catch(function(){show('err',L('nocon'),L('nocond'))});
+};
+</script>
+</body>
+</html>

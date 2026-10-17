@@ -1,0 +1,13 @@
+#pragma once
+#include <3ds.h>
+
+typedef enum {
+    IC_MENU, IC_PLUS, IC_SEND, IC_MIC, IC_CAMERA, IC_GLOBE, IC_IMAGE, IC_GEAR, IC_TRASH,
+    IC_PIN, IC_EDIT, IC_CHAT, IC_STOP, IC_CHEV_DOWN, IC_CHEV_RIGHT, IC_CHEV_LEFT, IC_CHECK,
+    IC_BULB, IC_CLOCK, IC_CLOSE, IC_REFRESH, IC_QR, IC_SPEAKER, IC_SEARCH, IC_GEM, IC_USER,
+    IC_KEY, IC_BOLT, IC_PEN, IC_BOOK, IC_MAP, IC_CODE, IC_INFO, IC_LOGOUT, IC_PALETTE,
+    IC_TEXTSIZE, IC_NOTE, IC_UP, IC_DOWN, IC_WIFI, IC_SPARK, IC_FLIP, IC_STAR, IC_LINK
+} IconId;
+
+// dibuja un ícono vectorial centrado en (cx,cy) dentro de un cuadrado de lado s
+void draw_icon(IconId id, float cx, float cy, float s, u32 c);
