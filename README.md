@@ -4,6 +4,8 @@
 
 *English below · [Read in English](#english)*
 
+<a href='https://ko-fi.com/W3A028X2KV' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
 <p align="center">
   <img src="docs/home.png" width="260" alt="Pantalla de inicio">
   <img src="docs/chat.png" width="260" alt="Conversación con Markdown">
@@ -78,7 +80,9 @@ Se corregirán en una próxima versión:
 
 ## Errores y sugerencias
 
-¿Algo falla o se ve raro? Abre un [issue](https://github.com/venomshine/Gemi3DS/issues) o escríbeme en [Discord](https://discord.com/invite/yVKp8JwV4e). Si quieres apoyar el proyecto: [Ko-fi](https://ko-fi.com/venomshine).
+¿Algo falla o se ve raro? Abre un [issue](https://github.com/venomshine/Gemi3DS/issues) o escríbeme en [Discord](https://discord.com/invite/yVKp8JwV4e). Si quieres apoyar el proyecto, invítame a un café:
+
+<a href='https://ko-fi.com/W3A028X2KV' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi3.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
 
 ## Compilar desde el código
 
