@@ -25,6 +25,7 @@
 static UsageModel s_u[USAGE_MAX];
 static int s_n;
 static long long s_off;        // segundos UTC - reloj de la consola
+static u32 s_keyfp;            // huella de la clave con la que se aprendieron los límites
 static bool s_have_off;
 
 // ------------------------------------------------------------ fechas
@@ -82,6 +83,7 @@ void usage_set_utc(time_t utc) {
 static void usage_save(void) {
     cJSON *j = cJSON_CreateObject();
     if (s_have_off) cJSON_AddNumberToObject(j, "off", (double)s_off);
+    cJSON_AddNumberToObject(j, "key", (double)s_keyfp);
     cJSON *a = cJSON_AddArrayToObject(j, "models");
     for (int i = 0; i < s_n; i++) {
         UsageModel *u = &s_u[i];
@@ -117,6 +119,8 @@ void usage_load(void) {
     if (!j) return;
     cJSON *off = cJSON_GetObjectItem(j, "off"), *o;
     if (cJSON_IsNumber(off)) { s_off = (long long)off->valuedouble; s_have_off = true; }
+    cJSON *kf = cJSON_GetObjectItem(j, "key");
+    if (cJSON_IsNumber(kf)) s_keyfp = (u32)kf->valuedouble;
     cJSON_ArrayForEach(o, cJSON_GetObjectItem(j, "models")) {
         cJSON *id = cJSON_GetObjectItem(o, "id");
         if (!cJSON_IsString(id) || s_n >= USAGE_MAX) continue;
@@ -131,6 +135,19 @@ void usage_load(void) {
 }
 
 // ------------------------------------------------------------ registro
+// los límites son de cada cuenta/proyecto: con otra clave se olvidan los aprendidos
+static u32 key_fingerprint(void) {
+    u32 h = 2166136261u;
+    for (const char *p = g_cfg.api_key; *p; p++) h = (h ^ (u8)*p) * 16777619u;
+    return h ? h : 1;
+}
+static void check_key(void) {
+    u32 fp = key_fingerprint();
+    if (fp == s_keyfp) return;
+    for (int i = 0; i < s_n; i++) s_u[i].limit_day = s_u[i].limit_min = 0;
+    s_keyfp = fp;
+}
+
 UsageModel *usage_find(const char *model) {
     for (int i = 0; i < s_n; i++) if (!strcmp(s_u[i].id, model)) return &s_u[i];
     return NULL;
@@ -166,6 +183,7 @@ static void learn_limits(UsageModel *u, const char *resp) {
 
 void usage_record(const char *model, long http_code, int tok_in, int tok_out, int first_ms, const char *resp) {
     if (!model || !model[0]) return;
+    check_key();
     UsageModel *u = usage_find(model);
     if (!u) {
         if (s_n < USAGE_MAX) u = &s_u[s_n++];
@@ -180,6 +198,8 @@ void usage_record(const char *model, long http_code, int tok_in, int tok_out, in
     u->req++;
     if (http_code == 200) u->ok++;
     if (http_code == 429) { u->limited++; learn_limits(u, resp); }
+    // si se pasa del límite guardado y Google sigue respondiendo, el límite subió: se olvida hasta el próximo aviso
+    if (http_code == 200 && u->limit_day && u->req > u->limit_day) u->limit_day = 0;
     u->tok_in += tok_in; u->tok_out += tok_out;
     u->last_code = (int)http_code;
     u->last_ms = first_ms;
@@ -210,6 +230,7 @@ static int cmp_req(const void *a, const void *b) {
 }
 
 int usage_count(void) {
+    check_key();
     int day = day_key();
     for (int i = 0; i < s_n; i++) roll_day(&s_u[i], day);
     qsort(s_u, s_n, sizeof(UsageModel), cmp_req);
