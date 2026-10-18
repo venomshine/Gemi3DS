@@ -13,6 +13,7 @@
 #include "media.h"
 #include "util.h"
 #include "scenes.h"
+#include "pair.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,7 @@ static Sheet S;
 static int s_ov;
 static float s_ov_anim;
 static char s_ov_text[3000], s_ov_cap[1200], s_ov_title[80];
+static char s_ov_url[96];              // QR con enlace al servidor local: el texto completo va en s_ov_text
 static Texture s_ov_tex, s_cam_tex;
 
 static float s_scroll, s_scroll_target, s_content_h;
@@ -295,15 +297,29 @@ static void show_qr(const char *text, const char *title, const char *cap) {
     snprintf(s_ov_text, sizeof(s_ov_text), "%s", text);
     snprintf(s_ov_title, sizeof(s_ov_title), "%s", title);
     snprintf(s_ov_cap, sizeof(s_ov_cap), "%s", cap);
+    s_ov_url[0] = 0;
     s_ov = OV_QR; s_ov_anim = 0;
 }
 
+// el mensaje se sirve desde la propia consola y el QR solo lleva la URL corta, que siempre
+// se lee bien; sin Wi-Fi se vuelve al QR con el texto (recortado si no cabe)
 static void share_qr(int i) {
     if (i < 0 || i >= g_chat->n) return;
-    char *t = malloc(1400);
-    md_strip(g_chat->m[i]->text ? g_chat->m[i]->text : "", t, 1300);
+    Msg *m = g_chat->m[i];
+    int sz = m->tlen + 16;
+    char *t = malloc(sz);
+    if (!t) return;
+    md_strip(m->text ? m->text : "", t, sz);
+    char url[96];
+    if (pair_share(t, url, sizeof(url))) {
+        show_qr(t, _("Compartir mensaje"), _("Escanéalo con tu teléfono (en la misma Wi-Fi) para ver y copiar el texto completo."));
+        snprintf(s_ov_url, sizeof(s_ov_url), "%s", url);
+        free(t);
+        return;
+    }
     int len = strlen(t);
     bool cut = false;
+    if (len > 1300) { len = 1300; while (len > 0 && ((u8)t[len] & 0xC0) == 0x80) len--; t[len] = 0; cut = true; }
     while (len > 40 && qr_size_for(t) == 0) {
         len = len * 85 / 100;
         while (len > 0 && ((u8)t[len] & 0xC0) == 0x80) len--;
@@ -887,6 +903,7 @@ static void update_scroll_input(void) {
 
 void chat_update(void) {
     gem_title_poll();
+    pair_poll();              // mensajes compartidos por QR
     mic_update();
     if (S.open && S.closing) sheet_update(&S);
 
@@ -1184,12 +1201,18 @@ static void draw_overlay_top(void) {
     switch (s_ov) {
     case OV_QR: {
         draw_rect(0, 0, TOP_W, SCR_H, col_alpha(T.bg, a));
-        draw_qr(s_ov_text, 12, 8, 224, a);
+        draw_qr(s_ov_url[0] ? s_ov_url : s_ov_text, 12, 8, 224, a);
         float tx = 248;
         text_wrap_lines(s_ov_title, 140, 0.6f, 2, tx, 16, col_alpha(T.text, a), true);
-        text_wrap_lines(s_ov_cap, 140, 0.45f, 5, tx, 58, col_alpha(T.text2, a), true);
+        int nl = text_wrap_lines(s_ov_cap, 140, 0.45f, 5, tx, 58, col_alpha(T.text2, a), true);
+        float py = 58 + nl * text_lineh(0.45f) + 10;
+        if (s_ov_url[0]) {
+            text_wrap_lines(s_ov_url + 7, 140, 0.42f, 2, tx, py, col_alpha(T.accent, a), true);
+            py += 2 * text_lineh(0.42f) + 6;
+        }
         char pv[300]; snprintf(pv, sizeof(pv), "%.180s", s_ov_text);
-        text_wrap_lines(pv, 140, 0.4f, 5, tx, 136, col_alpha(T.text3, a), true);
+        int maxl = (int)((210 - py) / text_lineh(0.4f));
+        if (maxl > 0) text_wrap_lines(pv, 140, 0.4f, maxl, tx, py, col_alpha(T.text3, a), true);
         text_draw(_(GLYPH_B " Cerrar"), tx, 218, 0.45f, col_alpha(T.text2, a));
         break;
     }
