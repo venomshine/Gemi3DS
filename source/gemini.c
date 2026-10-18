@@ -14,6 +14,7 @@
 //  * Pro o un modelo elegido a mano: se usa SIEMPRE ese modelo; si falla se explica el motivo.
 #include "gemini.h"
 #include "net.h"
+#include <curl/curl.h>
 #include "usage.h"
 #include "store.h"
 #include "util.h"
@@ -175,7 +176,11 @@ static void api_error_text(NetReq *r, const char *model, bool manual, char *out,
     char msg[400];
     api_message(r, msg, sizeof(msg));
     long c = r->http_code;
-    if (r->fb_timed_out)
+    if (r->no_link && r->curl_code != CURLE_COULDNT_RESOLVE_HOST)
+        snprintf(out, n, _("No se pudo conectar con Google: parece que no hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo."));
+    else if (r->no_link)
+        snprintf(out, n, _("No hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo."));
+    else if (r->fb_timed_out)
         snprintf(out, n, _("Gemini tardó demasiado en empezar a responder. Inténtalo de nuevo en un momento."));
     else if (c == 400 && (strstr(msg, "API key") || strstr(msg, "API_KEY")))
         snprintf(out, n, _("Tu clave de API no es válida. Vuelve a vincular tu cuenta en Ajustes."));
@@ -537,6 +542,12 @@ static bool submit_with(Chat *c, Msg *target, const char *model) {
 
 bool gem_send(Chat *c, Msg *target) {
     if (s_chat_active) return false;
+    if (!net_local_ip()) {            // sin Wi-Fi: no tiene sentido esperar a ningún modelo
+        target->state = MST_ERROR;
+        msg_set_text(target, _("La consola no está conectada a una red Wi-Fi. Conéctala desde la configuración de Internet de la consola y vuelve a intentarlo."));
+        target->ver++;
+        return false;
+    }
     s_no_think = false; s_think_retry = false;
     s_ntried = 0; s_first_model[0] = 0; s_first_reason = 0;
     s_status[0] = 0;
@@ -616,7 +627,7 @@ int gem_poll(void) {
     if (code)                 // cada intento que llegó a Google cuenta para el cupo
         usage_record(m->model, code, s_tok_in, s_tok_out,
                      s_chat.t_first ? (int)(s_chat.t_first - s_chat.t_start) : 0, s_chat.resp);
-    bool retryable = s_chat.fb_timed_out || code == 429 || code == 500 || code == 503 || code == 504 ||
+    bool retryable = (s_chat.fb_timed_out && !s_chat.no_link) || code == 429 || code == 500 || code == 503 || code == 504 ||
                      (code == 404 && s_ntried > 1);
     const char *next = NULL;
 

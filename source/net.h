@@ -32,6 +32,7 @@ struct NetReq {
     // tiempos
     int  first_byte_timeout_ms;   // 0 = sin límite; si se supera sin recibir nada, se aborta
     volatile bool fb_timed_out;
+    bool no_link;                 // no se llegó a conectar con el servidor (sin Internet)
     u64  t_start, t_first;        // ms (osGetTime)
 };
 

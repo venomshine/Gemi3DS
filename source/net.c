@@ -147,7 +147,7 @@ static void perform_once(CURL *c, NetReq *r) {
     curl_easy_setopt(c, CURLOPT_HTTPHEADER, h);
 
     r->http_code = 0;
-    r->t_start = osGetTime(); r->t_first = 0; r->fb_timed_out = false;
+    r->t_start = osGetTime(); r->t_first = 0; r->fb_timed_out = false; r->no_link = false;
     CURLcode rc = curl_easy_perform(c);
     r->curl_code = rc;
     long code = 0;
@@ -161,6 +161,8 @@ static void perform_once(CURL *c, NetReq *r) {
         curl_easy_getinfo(c, CURLINFO_APPCONNECT_TIME, &ta);
         curl_easy_getinfo(c, CURLINFO_STARTTRANSFER_TIME, &ts);
         curl_easy_getinfo(c, CURLINFO_TOTAL_TIME, &tt);
+        // sin respuesta y sin conexión TCP/TLS completa: es la red, no el modelo
+        r->no_link = !r->http_code && !r->cancel && (tc <= 0 || (!strncmp(r->url, "https", 5) && ta <= 0));
         FILE *lf = fopen("sdmc:/3ds/Gemi3DS/net.log", "a");
         if (lf) {
             const char *q = strchr(r->url, '?');
@@ -172,7 +174,8 @@ static void perform_once(CURL *c, NetReq *r) {
         }
     }
     if (rc != CURLE_OK) {
-        if (r->fb_timed_out) snprintf(r->err, sizeof(r->err), _("El modelo tardó demasiado en responder"));
+        if (r->no_link) snprintf(r->err, sizeof(r->err), _("No hay conexión a Internet."));
+        else if (r->fb_timed_out) snprintf(r->err, sizeof(r->err), _("El modelo tardó demasiado en responder"));
         else if (r->cancel) snprintf(r->err, sizeof(r->err), _("Cancelado"));
         else snprintf(r->err, sizeof(r->err), "%s", curl_easy_strerror(rc));
         r->state = REQ_FAILED;

@@ -337,4 +337,15 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
 'Sin peticiones en esta sesión': ('No requests this session', 'この起動中はリクエストなし'),
 'En pausa %d min: iba lento o saturado; los modos automáticos usan otro mientras tanto.':
     ('Paused for %d min: it was slow or overloaded; automatic modes use another one meanwhile.', '%d分間一時停止中: 遅いか混雑していたため、自動モードは別のモデルを使います。'),
+# --- sin conexión
+'No hay conexión a Internet.': ('No Internet connection.', 'インターネットに接続されていません。'),
+'No se pudo conectar con Google: parece que no hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo.':
+    ('Could not connect to Google: there seems to be no Internet connection. Check that the console is connected to a Wi-Fi network with Internet access and try again.',
+     'Googleに接続できませんでした。インターネットに接続されていないようです。本体がインターネットにつながるWi-Fiに接続されているか確認して、もう一度お試しください。'),
+'No hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo.':
+    ('No Internet connection. Check that the console is connected to a Wi-Fi network with Internet access and try again.',
+     'インターネットに接続されていません。本体がインターネットにつながるWi-Fiに接続されているか確認して、もう一度お試しください。'),
+'La consola no está conectada a una red Wi-Fi. Conéctala desde la configuración de Internet de la consola y vuelve a intentarlo.':
+    ('The console is not connected to a Wi-Fi network. Connect it from the console\'s Internet settings and try again.',
+     '本体がWi-Fiに接続されていません。本体のインターネット設定から接続して、もう一度お試しください。'),
 }
