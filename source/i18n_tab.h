@@ -842,7 +842,7 @@ static const TrEntry TR_TAB[] = {
      "Last minute",
      "直近1分"},
     {"Límite por minuto según Google",
-     "Per-minute limit reported by Google",
+     "Per-minute limit (Google)",
      "Googleが示す1分あたりの上限"},
     {"Peticiones en 60 s",
      "Requests in 60 s",

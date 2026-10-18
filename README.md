@@ -11,6 +11,11 @@
   <img src="docs/chat.png" width="260" alt="Conversación con Markdown">
   <img src="docs/modelos.png" width="260" alt="Selector de modelo">
 </p>
+<p align="center">
+  <img src="docs/deslizar.png" width="260" alt="Deslizar un chat para renombrarlo o eliminarlo">
+  <img src="docs/uso.png" width="260" alt="Uso de los modelos">
+  <img src="docs/compartir.png" width="260" alt="Compartir un mensaje por QR">
+</p>
 
 ## Descargar e instalar
 

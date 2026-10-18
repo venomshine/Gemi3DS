@@ -322,7 +322,7 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
 'Tokens hoy': ('Tokens today', '今日のトークン'),
 '%d correctas': ('%d successful', '成功 %d'),
 'Último minuto': ('Last minute', '直近1分'),
-'Límite por minuto según Google': ('Per-minute limit reported by Google', 'Googleが示す1分あたりの上限'),
+'Límite por minuto según Google': ('Per-minute limit (Google)', 'Googleが示す1分あたりの上限'),
 'Peticiones en 60 s': ('Requests in 60 s', '60秒間のリクエスト'),
 '%s entrada · %s salida': ('%s input · %s output', '入力 %s · 出力 %s'),
 'hace %d s': ('%d s ago', '%d秒前'),
