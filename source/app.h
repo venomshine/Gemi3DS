@@ -32,6 +32,7 @@ typedef struct {
     bool dark;
     int  text_size;
     bool show_thoughts;
+    bool auto_memory;          // Gemini guarda por sí mismo datos duraderos del usuario
     char saved_info[3000];     // "Información guardada": un recuerdo por línea
     char api_base[160];        // (avanzado) URL base de la API; vacío = Google
     int  lang;                 // 0 sistema, 1 español, 2 inglés, 3 japonés

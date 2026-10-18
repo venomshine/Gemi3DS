@@ -571,6 +571,8 @@ static void open_memory(int keep_sel) {
     S.anim = 1;
     SheetItem *a = sheet_add(&S, IC_PLUS, _("Añadir información"), _("Algo que Gemini debe saber de ti"), SR_NONE, -1);
     a->icon_col = T.accent;
+    sheet_add(&S, IC_SPARK, _("Recordar automáticamente"), _("Gemini guarda lo importante que le cuentas"),
+              g_cfg.auto_memory ? SR_ON : SR_OFF, -3);
     int n = mem_count();
     char h[60]; snprintf(h, sizeof(h), _("Lo que Gemini recuerda (%d)"), n);
     sheet_header(&S, h);
@@ -807,6 +809,10 @@ static void handle_sheet_choice(int idx) {
             }
             free(b);
             open_memory(idx);
+        } else if (id == -3) {
+            g_cfg.auto_memory = !g_cfg.auto_memory;
+            config_save();
+            open_memory(idx);
         } else if (id == -2) {
             dialog_open(DLG_MEM_CLEAR, _("¿Borrar toda la información?"), _("Gemini olvidará todo lo que tiene guardado sobre ti."), _("Borrar"), true);
         } else if (id >= 0) {
@@ -1020,7 +1026,10 @@ void chat_update(void) {
         if (S.open && S.kind == SK_DRAWER && !S.closing) { float sc = S.scroll; int sel = S.sel; open_drawer(); S.anim = 1; S.scroll = S.scroll_target = sc; S.sel = sel; }
     }
     int me = gem_take_memory_event();
-    if (me > 0) toast(_("Guardado en tu información"));
+    if (me > 0) {
+        char t[200]; snprintf(t, sizeof(t), _("Recordado: %s"), gem_last_memory());
+        toast(t);
+    }
     else if (me < 0) toast(_("Gemini lo ha olvidado"));
 
     if (g_dialog.open) {

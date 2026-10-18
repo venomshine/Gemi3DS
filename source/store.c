@@ -109,6 +109,7 @@ void config_load(void) {
     memset(&g_cfg, 0, sizeof(g_cfg));
     g_cfg.dark = true;
     g_cfg.show_thoughts = true;
+    g_cfg.auto_memory = true;
     g_cfg.mode = MODE_FAST;
     u8 *d = file_read(APP_DIR "/config.json", NULL);
     if (d) {
@@ -121,6 +122,7 @@ void config_load(void) {
             g_cfg.dark = jbool(j, "dark", true);
             g_cfg.text_size = (int)jnum(j, "text_size", TS_NORMAL);
             g_cfg.show_thoughts = jbool(j, "show_thoughts", true);
+            g_cfg.auto_memory = jbool(j, "auto_memory", true);
             SCPY(g_cfg.saved_info, jstr(j, "saved_info", ""));
             SCPY(g_cfg.api_base, jstr(j, "api_base", ""));
             g_cfg.lang = (int)jnum(j, "lang", 0);
@@ -157,6 +159,7 @@ void config_save(void) {
     cJSON_AddBoolToObject(j, "dark", g_cfg.dark);
     cJSON_AddNumberToObject(j, "text_size", g_cfg.text_size);
     cJSON_AddBoolToObject(j, "show_thoughts", g_cfg.show_thoughts);
+    cJSON_AddBoolToObject(j, "auto_memory", g_cfg.auto_memory);
     cJSON_AddNumberToObject(j, "lang", g_cfg.lang);
     cJSON_AddStringToObject(j, "saved_info", g_cfg.saved_info);
     if (g_cfg.api_base[0]) cJSON_AddStringToObject(j, "api_base", g_cfg.api_base);
@@ -385,6 +388,10 @@ void mem_add(const char *in) {
     SCPY(buf, in);
     clean_line(buf);
     if (!buf[0]) return;
+    for (int i = 0, n = mem_count(); i < n; i++) {      // sin repetidos
+        char cur[600];
+        if (mem_get(i, cur, sizeof(cur)) && !strcasecmp(cur, buf)) return;
+    }
     size_t l = strlen(g_cfg.saved_info);
     if (l + strlen(buf) + 2 >= sizeof(g_cfg.saved_info)) return;
     if (l && g_cfg.saved_info[l - 1] != '\n') strcat(g_cfg.saved_info, "\n");

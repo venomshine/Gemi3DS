@@ -158,7 +158,9 @@ int gem_model_paused(const char *id) {
 
 const char *gem_active_model(void) { return s_chat_active && s_target ? s_target->model : ""; }
 
+static char s_mem_last[200];
 int gem_take_memory_event(void) { int e = s_mem_event; s_mem_event = 0; return e; }
+const char *gem_last_memory(void) { return s_mem_last; }
 
 // ------------------------------------------------------------ errores
 static void api_message(NetReq *r, char *msg, int n) {
@@ -316,7 +318,7 @@ int gem_validate_poll(char *msg, int n) {
 }
 
 // ------------------------------------------------------------ chat
-static void sys_instruction(char *out, int n) {
+static void sys_instruction(char *out, int n, bool temporary) {
     time_t now = time(NULL);
     struct tm tmv; gmtime_r(&now, &tmv);
     static const char *M[] = {"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"};
@@ -329,15 +331,23 @@ static void sys_instruction(char *out, int n) {
         "En esta app NO puedes generar ni editar imágenes. Si el usuario te pide crear una imagen, explícale amablemente que "
         "la 3DS no puede hacerlo (generar y mostrar imágenes requiere mucha más memoria, potencia y resolución de pantalla de "
         "las que tiene la consola) y recomiéndale usar Gemini en el navegador (gemini.google.com) o en la app para Android o iPhone.\n\n"
-        "Memoria: si el usuario te pide EXPLÍCITAMENTE que recuerdes algo sobre él (por ejemplo «recuerda que…» o «guarda que…»), "
+        "Memoria: si el usuario te pide que recuerdes algo sobre él (por ejemplo «recuerda que…» o «guarda que…»), "
         "confírmalo y añade al final de tu respuesta una línea con el formato exacto [[RECORDAR: dato breve]]. Si te pide "
-        "olvidar algo, añade [[OLVIDAR: palabras clave]]. No uses esas etiquetas en ningún otro caso.",
+        "olvidar algo, añade [[OLVIDAR: palabras clave]].",
         tmv.tm_mday, M[tmv.tm_mon % 12], tmv.tm_year + 1900);
     if (g_lang != LANG_ES && o < n)
         o += snprintf(out + o, n - o, "\n\nLa interfaz de la app está en %s: si el usuario no ha escrito todavía en otro idioma, "
                       "responde en %s.", g_lang == LANG_JA ? "japonés" : "inglés", g_lang == LANG_JA ? "japonés" : "inglés");
+    if (g_cfg.auto_memory && !temporary && o < n)
+        o += snprintf(out + o, n - o, "\n\nAdemás, guarda por tu cuenta (con [[RECORDAR: …]], sin mencionarlo en tu respuesta) los datos "
+            "personales DURADEROS que el usuario cuente sobre sí mismo y que sirvan en futuras conversaciones: dónde vive, a qué se "
+            "dedica o qué estudia, sus gustos y aficiones, personas o mascotas importantes, proyectos en marcha, metas, idioma o "
+            "preferencias de respuesta. Reglas: como mucho dos por respuesta; frases breves en tercera persona (p. ej. «Vive en "
+            "Madrid»); nada que ya esté en la información guardada; nada temporal (lo que hace hoy, su estado de ánimo), ni datos "
+            "sensibles (salud, contraseñas, dinero, ideología, religión, orientación sexual, documentos) salvo que te pida "
+            "guardarlos; y si un dato nuevo contradice uno guardado, usa [[OLVIDAR: …]] con el viejo y [[RECORDAR: …]] con el nuevo.");
     if (g_cfg.name[0] && o < n) o += snprintf(out + o, n - o, "\n\nEl usuario se llama %s.", g_cfg.name);
-    if (g_cfg.saved_info[0] && o < n) o += snprintf(out + o, n - o, "\n\nInformación que el usuario te pidió recordar (úsala cuando sea útil):\n%s", g_cfg.saved_info);
+    if (g_cfg.saved_info[0] && o < n) o += snprintf(out + o, n - o, "\n\nInformación guardada sobre el usuario (úsala cuando sea útil):\n%s", g_cfg.saved_info);
 }
 
 static void add_attachment(cJSON *parts, Msg *m) {
@@ -364,7 +374,7 @@ static bool is_gemini2(const char *m) { return !strncmp(m, "gemini-2", 8); }
 static char *build_body(Chat *c, Msg *target, const char *model) {
     cJSON *root = cJSON_CreateObject();
     static char sys[6000];
-    sys_instruction(sys, sizeof(sys));
+    sys_instruction(sys, sizeof(sys), c->temporary);
     cJSON *si = cJSON_AddObjectToObject(root, "systemInstruction");
     cJSON *sp = cJSON_AddArrayToObject(si, "parts");
     cJSON *spp = cJSON_CreateObject();
@@ -592,7 +602,7 @@ static void process_memory_tags(Msg *m) {
             memcpy(item, s, l); item[l] = 0;
             str_trim(item);
             if (item[0]) {
-                if (rem) { mem_add(item); s_mem_event++; }
+                if (rem) { mem_add(item); s_mem_event++; SCPY(s_mem_last, item); }
                 else { int k = mem_forget(item); if (k) s_mem_event -= k; }
             }
             p = e + 2;

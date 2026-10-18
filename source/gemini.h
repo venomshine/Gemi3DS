@@ -34,6 +34,7 @@ int   gem_model_paused(const char *id);   // segundos que le quedan en pausa (0 
 const char *gem_active_model(void);       // modelo que está respondiendo ahora ("" si ninguno)
 int   gem_poll(void);                     // 1 si terminó en este frame
 int   gem_take_memory_event(void);        // >0 recuerdos guardados, <0 olvidados (una vez)
+const char *gem_last_memory(void);        // último dato guardado
 
 // título automático
 void  gem_title_request(Chat *c);
