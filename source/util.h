@@ -18,5 +18,9 @@ void  mkdirs(const char *path);
 bool  file_exists(const char *path);
 void  make_id(char *out, int n);
 void  fmt_when(u64 ms, char *out, int n);                 // "Hoy 14:05", "12 oct"
+void  fmt_today(char *out, int n);                        // "sáb 18 oct", "Sat, Oct 18", "10/18(土)"
+void  battery_init(void);
+void  battery_exit(void);
+int   battery_percent(bool *charging);                    // 0-100 (se consulta como mucho cada 5 s)
 void  str_trim(char *s);
 void  url_decode(char *s);

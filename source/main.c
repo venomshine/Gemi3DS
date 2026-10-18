@@ -21,6 +21,7 @@
 #include "gemini.h"
 #include "media.h"
 #include "scenes.h"
+#include "util.h"
 
 int g_scene = SC_SPLASH;
 bool g_quit;
@@ -72,6 +73,7 @@ int main(int argc, char **argv) {
     osSetSpeedupEnable(true);
     romfsInit();
     cfguInit();
+    battery_init();
     gfx_init();
     store_init();
     config_load();
@@ -148,6 +150,7 @@ int main(int argc, char **argv) {
     mic_stop();
     net_exit();
     gfx_exit();
+    battery_exit();
     cfguExit();
     romfsExit();
     return 0;

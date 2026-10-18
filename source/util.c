@@ -136,6 +136,49 @@ void fmt_when(u64 ms, char *out, int n) {
     } else snprintf(out, n, "%d %s", a.tm_mday, MESES[a.tm_mon % 12]);
 }
 
+void fmt_today(char *out, int n) {
+    time_t now = time(NULL);
+    struct tm d; gmtime_r(&now, &d);
+    if (g_lang == LANG_JA) {
+        static const char *W[] = {"日", "月", "火", "水", "木", "金", "土"};
+        snprintf(out, n, "%d/%d(%s)", d.tm_mon + 1, d.tm_mday, W[d.tm_wday % 7]);
+    } else if (g_lang == LANG_EN) {
+        static const char *W[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        static const char *MON[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+        snprintf(out, n, "%s, %s %d", W[d.tm_wday % 7], MON[d.tm_mon % 12], d.tm_mday);
+    } else {
+        static const char *W[] = {"dom", "lun", "mar", "mié", "jue", "vie", "sáb"};
+        snprintf(out, n, "%s %d %s", W[d.tm_wday % 7], d.tm_mday, MESES[d.tm_mon % 12]);
+    }
+}
+
+// batería: el porcentaje exacto viene del microcontrolador (mcu::HWC); si no hay acceso,
+// se usa el nivel aproximado de ptm:u (0-5)
+static bool s_mcu, s_ptm;
+void battery_init(void) {
+    s_mcu = R_SUCCEEDED(mcuHwcInit());
+    s_ptm = R_SUCCEEDED(ptmuInit());
+}
+void battery_exit(void) {
+    if (s_mcu) mcuHwcExit();
+    if (s_ptm) ptmuExit();
+    s_mcu = s_ptm = false;
+}
+int battery_percent(bool *charging) {
+    static u64 last; static int pct = -1; static bool chg;
+    u64 now = osGetTime();
+    if (pct < 0 || now - last > 5000) {
+        last = now;
+        u8 v = 0;
+        if (s_mcu && R_SUCCEEDED(MCUHWC_GetBatteryLevel(&v)) && v <= 100) pct = v;
+        else if (s_ptm && R_SUCCEEDED(PTMU_GetBatteryLevel(&v))) pct = v >= 5 ? 100 : v * 20;
+        u8 c = 0;
+        chg = s_ptm && R_SUCCEEDED(PTMU_GetBatteryChargeState(&c)) && c;
+    }
+    if (charging) *charging = chg;
+    return pct;
+}
+
 void str_trim(char *s) {
     char *p = s;
     while (*p && isspace((u8)*p)) p++;

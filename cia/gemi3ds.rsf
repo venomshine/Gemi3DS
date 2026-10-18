@@ -228,6 +228,7 @@ AccessControlInfo:
    #- ir:rst
    #- ir:u
    #- ir:USER
+   - mcu::HWC
    - mic:u
    #- ndm:u
    #- news:s

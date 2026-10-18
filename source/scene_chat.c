@@ -1272,18 +1272,47 @@ static void draw_msg(Msg *m, int idx, float sy) {
     }
 }
 
+// icono de batería: contorno con el nivel dentro (rojo si queda poco) y un rayo si se está cargando
+static void draw_battery(float x, float y, int pct, bool charging) {
+    float w = 19, h = 10;
+    draw_rrect_outline(x, y, w, h, 2.5f, 1.2f, T.text3);
+    draw_rrect(x + w + 0.5f, y + 3, 2, h - 6, 1, T.text3);
+    if (pct >= 0) {
+        u32 c = charging ? T.accent : (pct <= 15 ? T.danger : (pct <= 30 ? col_hex(0xFDD663) : T.ok));
+        draw_rrect(x + 2, y + 2, fmaxf(1.5f, (w - 4) * pct / 100.0f), h - 4, 1.2f, c);
+    }
+    if (charging) draw_icon(IC_BOLT, x + w / 2, y + h / 2, 9, T.bg);
+}
+
 static void draw_header_top(void) {
     draw_grad_v(0, 0, TOP_W, TOP_HDR + 10, T.bg, col_alpha(T.bg, 0));
     draw_rect(0, 0, TOP_W, TOP_HDR - 4, T.bg);
-    text_draw("Gemini", 10, 3, 0.55f, T.text);
-    text_draw_clip(gem_mode_label(g_cfg.mode), 10 + text_width("Gemini", 0.55f) + 6, 5, 200, 0.45f, T.text3);
+    // derecha: fecha · hora   [batería] 87 %
     float rx = TOP_W - 10;
+    bool chg = false;
+    int pct = battery_percent(&chg);
+    if (pct >= 0) {
+        char bp[8]; snprintf(bp, sizeof(bp), "%d%%", pct);
+        text_draw_right(bp, rx, 5, 0.45f, T.text2);
+        rx -= text_width(bp, 0.45f) + 4;
+        draw_battery(rx - 22, 6, pct, chg);
+        rx -= 22 + 10;
+    }
     time_t now = time(NULL);
     struct tm tmv; localtime_r(&now, &tmv);
     char clk[8]; snprintf(clk, sizeof(clk), "%02d:%02d", tmv.tm_hour, tmv.tm_min);
-    text_draw_right(clk, rx, 5, 0.45f, T.text3);
-    rx -= text_width(clk, 0.45f) + 8;
-    if (g_chat->temporary) draw_icon(IC_CLOCK, rx - 7, 11, 13, T.accent);
+    text_draw_right(clk, rx, 5, 0.45f, T.text2);
+    rx -= text_width(clk, 0.45f) + 5;
+    draw_circle(rx - 1.5f, 12, 1.3f, T.text3);
+    rx -= 6;
+    char day[32]; fmt_today(day, sizeof(day));
+    text_draw_right(day, rx, 5, 0.45f, T.text3);
+    rx -= text_width(day, 0.45f) + 8;
+    if (g_chat->temporary) { draw_icon(IC_CLOCK, rx - 7, 11, 13, T.accent); rx -= 18; }
+    // izquierda: Gemini + modo (se recorta para no pisar la fecha)
+    text_draw("Gemini", 10, 3, 0.55f, T.text);
+    float mx = 10 + text_width("Gemini", 0.55f) + 6;
+    if (rx - 8 - mx > 20) text_draw_clip(gem_mode_label(g_cfg.mode), mx, 5, rx - 8 - mx, 0.45f, T.text3);
     if (gem_streaming()) {
         float p = g_time * 1.2f;
         draw_grad_h(0, TOP_HDR - 4, TOP_W, 2, col_alpha(gemini_grad(p), 0.9f), col_alpha(gemini_grad(p + 0.5f), 0.9f));
