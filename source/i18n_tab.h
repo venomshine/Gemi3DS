@@ -922,4 +922,13 @@ static const TrEntry TR_TAB[] = {
     {"Bloqueado",
      "Blocked",
      "停止中"},
+    {"Mantén pulsada la foto para guardarla.",
+     "Press and hold the photo to save it.",
+     "写真を長押しすると保存できます。"},
+    {"Escanéalo con tu teléfono (en la misma Wi-Fi) para ver la foto y copiar el texto.",
+     "Scan it with your phone (on the same Wi-Fi) to see the photo and copy the text.",
+     "スマホで読み取ると(同じWi-Fiで)写真を見てテキストをコピーできます。"},
+    {"Conecta la consola a una red Wi-Fi para pasar la foto al teléfono",
+     "Connect the console to Wi-Fi to send the photo to your phone",
+     "写真をスマホに送るには本体をWi-Fiに接続してください"},
 };

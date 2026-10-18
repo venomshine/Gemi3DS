@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 static int s_fd = -1;
 static int s_port;
@@ -32,7 +33,7 @@ static bool s_pairing;               // false: el servidor solo sirve mensajes c
 
 // mensajes compartidos: el QR lleva una URL corta y el texto completo se sirve desde aquí
 #define SHARE_MAX 6
-static struct { char id[8]; char *text; } s_share[SHARE_MAX];
+static struct { char id[8]; char *text; char img[160]; } s_share[SHARE_MAX];   // img: foto adjunta (o "")
 static int s_share_next;
 
 bool pair_running(void) { return s_fd >= 0; }
@@ -79,12 +80,13 @@ void pair_stop(void) {
     s_pairing = false;
 }
 
-bool pair_share(const char *text, char *url, int n) {
+bool pair_share(const char *text, const char *img, char *url, int n) {
     if (!server_open() || strncmp(s_url, "http", 4)) return false;
     int k = s_share_next++ % SHARE_MAX;
     free(s_share[k].text);
     s_share[k].text = strdup(text);
     if (!s_share[k].text) return false;
+    snprintf(s_share[k].img, sizeof(s_share[k].img), "%s", img ? img : "");
     static const char abc[] = "abcdefghijkmnpqrstuvwxyz23456789";
     u64 r = svcGetSystemTick() ^ ((u64)osGetTime() << 16) ^ (u64)k * 0x9E3779B97F4A7C15ull;
     for (int i = 0; i < 5; i++) { s_share[k].id[i] = abc[r % 32]; r = r / 32 * 2654435761u + 7; }
@@ -171,10 +173,23 @@ static void html_escape_append(char **o, size_t *len, size_t *cap, const char *i
 }
 
 // página para el teléfono con el texto completo y un botón para copiarlo
+// la foto adjunta de un mensaje compartido (se lee de la SD en cada petición)
+static void serve_share_img(int fd, const char *path) {
+    size_t sz = 0;
+    u8 *d = file_read(path, &sz);
+    if (!d) { respond(fd, 404, "text/plain", "", 0); return; }
+    const char *ext = strrchr(path, '.');
+    respond(fd, 200, ext && !strcasecmp(ext, ".png") ? "image/png" : "image/jpeg", (const char *)d, sz);
+    free(d);
+}
+
 static void serve_share(int fd, const char *id) {
-    const char *text = NULL;
+    const char *text = NULL, *img = "";
     for (int i = 0; i < SHARE_MAX; i++)
-        if (s_share[i].text && !strncmp(id, s_share[i].id, 5) && (id[5] == 0 || id[5] == ' ' || id[5] == '?')) text = s_share[i].text;
+        if (s_share[i].text && !strncmp(id, s_share[i].id, 5) && (id[5] == 0 || id[5] == ' ' || id[5] == '?' || id[5] == '/')) {
+            text = s_share[i].text; img = s_share[i].img;
+        }
+    if (text && !strncmp(id + 5, "/img", 4) && img[0]) { serve_share_img(fd, img); return; }
     if (!text) {
         const char *m = _("Este mensaje ya no está disponible. Vuelve a compartirlo desde la consola.");
         respond(fd, 404, "text/plain; charset=utf-8", m, strlen(m));
@@ -199,8 +214,17 @@ static void serve_share(int fd, const char *id) {
         "padding:14px 28px;font:600 16px system-ui,sans-serif;background:var(--ac);color:var(--bg);"
         "box-shadow:0 4px 16px #0004}"
         "textarea{position:fixed;opacity:0;top:0;left:0;width:1px;height:1px}"
-        "</style></head><body><main><h1>Gemi3DS</h1><p class=s>%s</p><div id=t>",
+        "img{display:block;width:100%%;border-radius:16px;margin:0 0 6px}"
+        "#t:empty{display:none}"
+        "</style></head><body><main><h1>Gemi3DS</h1><p class=s>%s</p>",
         _("Mensaje compartido desde tu 3DS"));
+    if (img[0]) {   // la foto del mensaje, con una pista para guardarla
+        char ih[400];
+        snprintf(ih, sizeof(ih), "<img src=\"/m/%.5s/img\" alt=\"\"><p class=s>%s</p>", id,
+                 _("Mantén pulsada la foto para guardarla."));
+        strncat(head, ih, sizeof(head) - strlen(head) - 1);
+    }
+    strncat(head, "<div id=t>", sizeof(head) - strlen(head) - 1);
     size_t hl = strlen(head);
     if (hl + 1 > cap) { cap = hl * 2; o = realloc(o, cap); }
     memcpy(o, head, hl + 1); len = hl;
@@ -209,6 +233,7 @@ static void serve_share(int fd, const char *id) {
     snprintf(tail, sizeof(tail),
         "</div></main><textarea id=c readonly></textarea><button id=b>%s</button><script>"
         "var b=document.getElementById('b'),t=document.getElementById('t').innerText;"
+        "if(!t.trim())b.style.display='none';"
         "b.onclick=function(){var ok=function(){b.textContent='%s';setTimeout(function(){b.textContent='%s'},1800)};"
         "if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(t).then(ok);return}"
         "var c=document.getElementById('c');c.value=t;c.focus();c.select();c.setSelectionRange(0,t.length);"

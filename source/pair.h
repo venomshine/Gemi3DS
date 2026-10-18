@@ -21,4 +21,4 @@ bool pair_take(char *key, int kn, char *name, int nn);   // true si llegó una c
 void pair_set_status(int state, const char *msg);
 bool pair_phone_seen(void);                 // el teléfono abrió la página
 // sirve el texto en http://ip:puerto/m/ID para abrirlo en el teléfono (false si no hay Wi-Fi)
-bool pair_share(const char *text, char *url, int n);
+bool pair_share(const char *text, const char *img, char *url, int n);   // img: foto adjunta o NULL

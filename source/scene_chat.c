@@ -46,7 +46,8 @@ static Sheet S;
 static int s_ov;
 static float s_ov_anim;
 static char s_ov_text[3000], s_ov_cap[1200], s_ov_title[80];
-static char s_ov_url[96];              // QR con enlace al servidor local: el texto completo va en s_ov_text
+static char s_ov_url[96];
+static float s_ov_t0;                  // cuándo se abrió el visor (el pie de foto se desvanece)              // QR con enlace al servidor local: el texto completo va en s_ov_text
 static Texture s_ov_tex, s_cam_tex;
 
 static float s_scroll, s_scroll_target, s_content_h;
@@ -316,9 +317,16 @@ static void share_qr(int i) {
     if (!t) return;
     md_strip(m->text ? m->text : "", t, sz);
     char url[96];
-    if (pair_share(t, url, sizeof(url))) {
-        show_qr(t, _("Compartir mensaje"), _("Escanéalo con tu teléfono (en la misma Wi-Fi) para ver y copiar el texto completo."));
+    bool img = m->att == ATT_IMAGE && m->att_path[0];
+    if (pair_share(t, img ? m->att_path : NULL, url, sizeof(url))) {
+        show_qr(t, _("Compartir mensaje"), img ? _("Escanéalo con tu teléfono (en la misma Wi-Fi) para ver la foto y copiar el texto.")
+                                               : _("Escanéalo con tu teléfono (en la misma Wi-Fi) para ver y copiar el texto completo."));
         snprintf(s_ov_url, sizeof(s_ov_url), "%s", url);
+        free(t);
+        return;
+    }
+    if (!t[0]) {   // solo una foto: sin Wi-Fi no hay forma de pasarla (un QR no puede llevar una imagen)
+        toast(_("Conecta la consola a una red Wi-Fi para pasar la foto al teléfono"));
         free(t);
         return;
     }
@@ -364,6 +372,7 @@ static void view_image(const char *path, const char *cap) {
     if (!img_load_tex(path, &s_ov_tex, 400, 240)) { toast(_("No se pudo abrir la imagen")); return; }
     snprintf(s_ov_cap, sizeof(s_ov_cap), "%s", cap);
     s_ov = OV_IMAGE; s_ov_anim = 0;
+    s_ov_t0 = g_time;
 }
 
 // ------------------------------------------------------------ fotos de la SD
@@ -608,10 +617,9 @@ static void open_actions(int i) {
         sheet_add(&S, IC_EDIT, _("Editar y volver a enviar"), NULL, SR_NONE, 6);
     }
     if (m->att == ATT_IMAGE) sheet_add(&S, IC_IMAGE, _("Ver foto"), m->att_path + 5, SR_CHEV, 7);
-    if (m->tlen) {
+    if (m->tlen || m->att == ATT_IMAGE)
         sheet_add(&S, IC_QR, _("Compartir por QR"), _("Pásalo a tu teléfono"), SR_CHEV, 3);
-        sheet_add(&S, IC_NOTE, _("Guardar como texto en la SD"), NULL, SR_NONE, 8);
-    }
+    if (m->tlen) sheet_add(&S, IC_NOTE, _("Guardar como texto en la SD"), NULL, SR_NONE, 8);
 }
 
 static void open_photos(void) {
@@ -1374,8 +1382,12 @@ static void draw_overlay_top(void) {
             float w = s_ov_tex.w * s * (0.94f + 0.06f * a), h = s_ov_tex.h * s * (0.94f + 0.06f * a);
             draw_texture(&s_ov_tex, (TOP_W - w) / 2, (SCR_H - h) / 2, w, h, a);
         }
-        draw_grad_v(0, 200, TOP_W, 40, 0, col_alpha(0xFF000000, 0.8f * a));
-        text_draw_clip(s_ov_cap, 10, 220, 380, 0.42f, col_alpha(0xFFE3E3E3, a));
+        // en «Ver foto» la ruta se desvanece a los 3 s; en el selector de fotos se queda
+        float ca = s_ov == OV_IMAGE ? a * clampf((3.5f - (g_time - s_ov_t0)) / 0.5f, 0, 1) : a;
+        if (ca > 0.01f) {
+            draw_grad_v(0, 200, TOP_W, 40, 0, col_alpha(0xFF000000, 0.8f * ca));
+            text_draw_clip(s_ov_cap, 10, 220, 380, 0.42f, col_alpha(0xFFE3E3E3, ca));
+        }
         break;
     }
     case OV_CAMERA:
