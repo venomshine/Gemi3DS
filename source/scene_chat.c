@@ -787,19 +787,7 @@ static void handle_sheet_choice(int idx) {
     case SK_ABOUT:
         break;   // el QR se muestra arriba al resaltar cada enlace
     case SK_USAGE:
-        if (id >= 0) {   // tocar un modelo: indicar su límite diario (lo muestra AI Studio en "Rate limits")
-            UsageModel *u = usage_get(id);
-            if (!u) break;
-            char mid[80], cur[16] = "", in[16] = "";
-            snprintf(mid, sizeof(mid), "%s", u->id);
-            if (u->limit_day) snprintf(cur, sizeof(cur), "%d", u->limit_day);
-            if (kb_input(_("Peticiones al día de este modelo (míralo en AI Studio, en Rate limits)"), cur, in, sizeof(in), false, false)) {
-                usage_set_limit(mid, atoi(in));
-                toast(atoi(in) > 0 ? _("Límite diario guardado") : _("Límite diario borrado"));
-            }
-            open_usage(idx);
-        }
-        break;
+        break;   // los detalles (o el QR de AI Studio) se muestran arriba al resaltar
     case SK_MEMORY:
         if (id == -1) {
             char *b = calloc(1, 600);
@@ -1428,8 +1416,9 @@ static void draw_usage_top(SheetItem *it, float a) {
         snprintf(v, sizeof(v), "%d", r); fmt_tokens(t, tk, sizeof(tk));
         stat_box(14, 46, 182, _("Peticiones hoy"), v, NULL, T.text, a);
         stat_box(204, 46, 182, _("Tokens hoy"), tk, NULL, T.text, a);
-        text_wrap_lines(_("Google no informa de cuánto cupo te queda, así que Gemi3DS cuenta aquí cada petición. "
-                          "Si Google rechaza una por límite, se apunta el límite que indica."), 360, 0.45f, 4, 20, 120, col_alpha(T.text2, a), true);
+        text_wrap_lines(_("Google no informa de cuánto cupo te queda: los límites gratuitos cambian y dependen de tu cuenta. "
+                          "Gemi3DS cuenta aquí cada petición y, la primera vez que Google rechaza una por límite, apunta el límite "
+                          "exacto que indica para mostrarte el porcentaje que queda."), 360, 0.45f, 5, 20, 120, col_alpha(T.text2, a), true);
         text_wrap_lines(reset, 360, 0.43f, 2, 20, 196, col_alpha(T.text3, a), true);
         return;
     }
@@ -1445,8 +1434,8 @@ static void draw_usage_top(SheetItem *it, float a) {
     float left = usage_left(u);
     char lt[80];
     if (left >= 0) snprintf(lt, sizeof(lt), _("Te queda el %d%% de hoy"), (int)(left * 100));
-    else snprintf(lt, sizeof(lt), "%s", _("Límite diario desconocido: toca el modelo para indicarlo"));
-    text_draw_clip(lt, 18, 48, 300, 0.45f, col_alpha(left >= 0 ? T.text : T.text3, a));
+    else snprintf(lt, sizeof(lt), "%s", _("Límite diario aún desconocido: aparecerá cuando Google lo indique"));
+    text_draw_clip(lt, 18, 48, left >= 0 ? 300 : 364, left >= 0 ? 0.45f : 0.42f, col_alpha(left >= 0 ? T.text : T.text3, a));
     if (left >= 0) {
         char pc[8]; snprintf(pc, sizeof(pc), "%d%%", (int)(left * 100));
         text_draw_right(pc, 382, 46, 0.55f, col_alpha(gemini_grad(0.5f), a));
@@ -1464,7 +1453,7 @@ static void draw_usage_top(SheetItem *it, float a) {
 
     char v[32], sub[64], tk[16], ti[16], to[16];
     // peticiones hoy
-    if (u->limit_day) { snprintf(v, sizeof(v), "%d / %d", u->req, u->limit_day); snprintf(sub, sizeof(sub), _("Límite diario")); }
+    if (u->limit_day) { snprintf(v, sizeof(v), "%d / %d", u->req, u->limit_day); snprintf(sub, sizeof(sub), _("Límite diario según Google")); }
     else { snprintf(v, sizeof(v), "%d", u->req); snprintf(sub, sizeof(sub), _("%d correctas"), u->ok); }
     stat_box(14, 82, 182, _("Peticiones hoy"), v, sub, T.text, a);
     int rpm = usage_rpm(u);

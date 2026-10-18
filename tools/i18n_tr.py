@@ -320,10 +320,6 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
     ('Google shows your key\'s exact usage and limits in AI Studio. Scan it with your phone.', 'AI Studioでキーの正確な使用量と上限を確認できます。スマホで読み取ってください。'),
 'Peticiones hoy': ('Requests today', '今日のリクエスト'),
 'Tokens hoy': ('Tokens today', '今日のトークン'),
-'Google no informa de cuánto cupo te queda, así que Gemi3DS cuenta aquí cada petición. Si Google rechaza una por límite, se apunta el límite que indica.':
-    ('Google does not report how much quota you have left, so Gemi3DS counts every request here. If Google rejects one for a limit, the limit it reports is saved.',
-     'Googleは残りの枠を教えてくれないため、Gemi3DSがここで毎回のリクエストを数えます。上限で拒否された場合は、Googleが示した上限を記録します。'),
-'Límite diario': ('Daily limit', '1日の上限'),
 '%d correctas': ('%d successful', '成功 %d'),
 'Último minuto': ('Last minute', '直近1分'),
 'Límite por minuto según Google': ('Per-minute limit reported by Google', 'Googleが示す1分あたりの上限'),
@@ -349,12 +345,13 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
      '本体がWi-Fiに接続されていません。本体のインターネット設定から接続して、もう一度お試しください。'),
 # --- porcentaje restante y memoria automática
 'Te queda el %d%% de hoy': ('%d%% of today\'s quota left', '今日の残り %d%%'),
-'Límite diario desconocido: toca el modelo para indicarlo': ('Daily limit unknown: tap the model to set it', '1日の上限が不明です。モデルをタップして入力してください'),
-'Peticiones al día de este modelo (míralo en AI Studio, en Rate limits)': ('Requests per day for this model (see AI Studio, Rate limits)', 'このモデルの1日のリクエスト数(AI StudioのRate limitsで確認)'),
-'Límite diario guardado': ('Daily limit saved', '1日の上限を保存しました'),
-'Límite diario borrado': ('Daily limit cleared', '1日の上限を削除しました'),
 'Queda %d%% · %d/%d hoy · %s tokens': ('%d%% left · %d/%d today · %s tokens', '残り %d%% · 今日 %d/%d · %s トークン'),
 'Recordar automáticamente': ('Remember automatically', '自動で記憶'),
 'Gemini guarda lo importante que le cuentas': ('Gemini saves the important things you tell it', '話した大事なことをGeminiが保存します'),
 'Recordado: %s': ('Remembered: %s', '記憶しました: %s'),
+'Límite diario según Google': ('Daily limit reported by Google', 'Googleが示す1日の上限'),
+'Límite diario aún desconocido: aparecerá cuando Google lo indique': ('Daily limit not known yet: it will appear once Google reports it', '1日の上限はまだ不明です。Googleが知らせると表示されます'),
+'Google no informa de cuánto cupo te queda: los límites gratuitos cambian y dependen de tu cuenta. Gemi3DS cuenta aquí cada petición y, la primera vez que Google rechaza una por límite, apunta el límite exacto que indica para mostrarte el porcentaje que queda.':
+    ('Google does not report how much quota you have left: free limits change and depend on your account. Gemi3DS counts every request here and, the first time Google rejects one for a limit, saves the exact limit it reports to show you the percentage left.',
+     'Googleは残りの枠を教えてくれません。無料枠の上限は変わることがあり、アカウントによっても異なります。Gemi3DSはここで毎回のリクエストを数え、上限で初めて拒否されたときにGoogleが示す正確な上限を記録して、残りの割合を表示します。'),
 }

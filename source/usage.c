@@ -189,19 +189,6 @@ void usage_record(const char *model, long http_code, int tok_in, int tok_out, in
     usage_save();
 }
 
-void usage_set_limit(const char *model, int per_day) {
-    UsageModel *u = usage_find(model);
-    if (!u) {
-        if (s_n >= USAGE_MAX) return;
-        u = &s_u[s_n++];
-        memset(u, 0, sizeof(*u));
-        snprintf(u->id, sizeof(u->id), "%s", model);
-        u->day = day_key();
-    }
-    u->limit_day = per_day > 0 ? per_day : 0;
-    usage_save();
-}
-
 float usage_left(const UsageModel *u) {
     if (!u->limit_day) return -1;
     float f = 1.0f - (float)u->req / u->limit_day + 1e-6f;   // 1e-6: que 0 peticiones dé el 100 % exacto
