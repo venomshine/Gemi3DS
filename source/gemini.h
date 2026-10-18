@@ -22,6 +22,7 @@ void  gem_models_poll(void);
 // validación de clave (vinculación)
 void  gem_validate_key(const char *key);
 int   gem_validate_poll(char *msg, int n);    // -1 pendiente, 0 falló, 1 ok
+bool  gem_validate_no_link(void);             // la última comprobación falló por no tener Internet
 
 // chat
 bool  gem_send(Chat *c, Msg *target);

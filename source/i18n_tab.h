@@ -931,4 +931,13 @@ static const TrEntry TR_TAB[] = {
     {"Conecta la consola a una red Wi-Fi para pasar la foto al teléfono",
      "Connect the console to Wi-Fi to send the photo to your phone",
      "写真をスマホに送るには本体をWi-Fiに接続してください"},
+    {"Sin conexión Wi-Fi. Comprobaré la clave en cuanto te conectes.",
+     "No Wi-Fi. I'll check the key as soon as you connect.",
+     "Wi-Fi未接続です。接続したらすぐにキーを確認します。"},
+    {"Sin conexión a Internet. Comprobaré la clave sola en cuanto haya conexión.",
+     "No Internet connection. I'll check the key automatically once there is a connection.",
+     "インターネットに接続されていません。接続されたら自動でキーを確認します。"},
+    {"Conecta la consola en Configuración de la consola → Internet. El código aparecerá solo.",
+     "Connect the console in System Settings → Internet. The code will appear by itself.",
+     "本体設定 → インターネット設定で接続してください。コードは自動で表示されます。"},
 };

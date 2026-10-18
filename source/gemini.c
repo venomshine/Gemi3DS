@@ -306,6 +306,8 @@ void gem_validate_key(const char *key) {
     s_valid_active = net_submit(&s_valid);
 }
 
+bool gem_validate_no_link(void) { return s_valid.no_link; }
+
 int gem_validate_poll(char *msg, int n) {
     if (!s_valid_active) return 0;
     if (net_busy(&s_valid)) return -1;

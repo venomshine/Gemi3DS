@@ -13,6 +13,7 @@
 #include "store.h"
 #include "scenes.h"
 #include "util.h"
+#include "net.h"
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -24,9 +25,12 @@ static char s_err[400];
 static char s_key[128], s_name[48];
 static bool s_help;
 static bool s_manual;
+static bool s_wait_net;         // la clave está guardada en espera: se comprobará al haber conexión
+static float s_net_t;           // para revisar la conexión cada poco
+static float s_retry_t;         // tiempo desde el último intento con la clave en espera
 
 void login_enter(void) {
-    s_st = LS_WAIT; s_t = 0; s_err[0] = 0; s_help = false;
+    s_st = LS_WAIT; s_t = 0; s_err[0] = 0; s_help = false; s_wait_net = false;
     pair_start();
 }
 
@@ -36,6 +40,13 @@ static void start_check(const char *key, const char *name, bool manual) {
     snprintf(s_key, sizeof(s_key), "%s", key);
     snprintf(s_name, sizeof(s_name), "%s", name ? name : "");
     s_manual = manual;
+    s_net_t = 0;
+    if (!net_local_ip()) {          // sin Wi-Fi: se guarda en espera en vez de fallar
+        s_st = LS_ERR; s_wait_net = true;
+        snprintf(s_err, sizeof(s_err), "%s", _("Sin conexión Wi-Fi. Comprobaré la clave en cuanto te conectes."));
+        return;
+    }
+    s_wait_net = false;
     s_st = LS_CHECK;
     pair_set_status(PAIR_CHECKING, "");
     gem_validate_key(s_key);
@@ -44,6 +55,14 @@ static void start_check(const char *key, const char *name, bool manual) {
 void login_update(void) {
     s_t += g_dt;
     pair_poll();
+    // revisar la conexión: el QR aparece solo al conectar el Wi-Fi y la clave en espera se comprueba sola
+    s_net_t += g_dt; s_retry_t += g_dt;
+    if (s_net_t > 1.5f && s_st != LS_CHECK && s_st != LS_OK) {
+        s_net_t = 0;
+        bool online = net_local_ip() != 0;
+        if (online && strncmp(pair_url(), "http", 4)) { pair_stop(); pair_start(); }
+        if (online && s_wait_net && s_st == LS_ERR && s_retry_t > 4) { s_retry_t = 0; start_check(s_key, s_name, s_manual); }
+    }
     char k[128], n[48];
     if (s_st != LS_CHECK && s_st != LS_OK && pair_take(k, sizeof(k), n, sizeof(n))) start_check(k, n, false);
 
@@ -56,10 +75,15 @@ void login_update(void) {
             config_save();
             pair_set_status(PAIR_OK, "");
             s_st = LS_OK; s_ok_t = 0;
+        } else if (r == 0 && gem_validate_no_link()) {
+            // con Wi-Fi pero sin Internet: no se pierde la clave, se vuelve a probar sola
+            snprintf(s_err, sizeof(s_err), "%s", _("Sin conexión a Internet. Comprobaré la clave sola en cuanto haya conexión."));
+            pair_set_status(PAIR_ERROR, s_err);
+            s_st = LS_ERR; s_wait_net = true; s_retry_t = 0;
         } else if (r == 0) {
             snprintf(s_err, sizeof(s_err), "%s", msg);
             pair_set_status(PAIR_ERROR, msg);
-            s_st = LS_ERR;
+            s_st = LS_ERR; s_wait_net = false;
         }
     }
     if (s_st == LS_OK) {
@@ -145,8 +169,10 @@ void login_draw_top(void) {
         draw_qr(url, qx, qy, qs, 1);
     } else {
         draw_rrect(qx, qy, qs, qs, 14, T.surface);
-        draw_icon(IC_WIFI, qx + qs / 2, qy + qs / 2 - 14, 46, T.text3);
-        text_draw_center(_("Sin conexión Wi-Fi"), qx + qs / 2, qy + qs / 2 + 24, 0.5f, T.text2);
+        draw_icon(IC_WIFI, qx + qs / 2, qy + 62, 46, T.text3);
+        text_draw_center(_("Sin conexión Wi-Fi"), qx + qs / 2, qy + 100, 0.5f, T.text2);
+        text_wrap_lines(_("Conecta la consola en Configuración de la consola → Internet. El código aparecerá solo."),
+                        qs - 24, 0.4f, 4, qx + 12, qy + 126, T.text3, true);
     }
     // texto lateral
     float tx = 228;
@@ -165,6 +191,9 @@ void login_draw_top(void) {
     if (s_st == LS_CHECK) {
         draw_arc(tx + 8, sy + 8, 7, 2, g_time * 6, g_time * 6 + 4.2f, T.accent);
         text_draw(_("Comprobando la clave…"), tx + 22, sy + 1, 0.45f, T.text);
+    } else if (s_st == LS_ERR && s_wait_net) {
+        draw_arc(tx + 6, sy - 1, 5, 1.5f, g_time * 4, g_time * 4 + 4.2f, T.text3);
+        text_wrap_lines(s_err, 154, 0.4f, 3, tx + 14, sy - 8, T.text2, true);
     } else if (s_st == LS_ERR) {
         text_wrap_lines(s_err, 168, 0.4f, 3, tx, sy - 8, T.danger, true);
     } else if (pair_phone_seen()) {
