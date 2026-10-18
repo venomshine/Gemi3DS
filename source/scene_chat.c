@@ -981,8 +981,7 @@ void chat_update(void) {
         if (tap(PAD_X + 156, ROW_Y, 148, 32) || (g_kdown & KEY_X)) { open_actions(s_sel); return; }
         if (g_kdown & KEY_B) scroll_to_bottom();
     }
-    // tocar el touchpad sin arrastrar = acciones del mensaje resaltado
-    if (tap(PAD_X, PAD_Y, PAD_W, PAD_H)) { open_actions(s_sel); return; }
+    // el touchpad (y su vista previa) solo desplaza: el menú se abre con el botón «Más»
     update_scroll_input();
 }
 
