@@ -100,6 +100,7 @@ void sheet_open(Sheet *s, int kind, const char *title, bool from_left) {
     s->open = true; s->closing = false; s->from_left = from_left;
     s->anim = 0; s->n = 0; s->sel = -1; s->kind = kind;
     s->scroll = s->scroll_target = 0; s->chosen = -1; s->held_item = -1;
+    s->swipe_item = -1; s->swipe_x = s->swipe_rest = 0; s->swiping = s->vscroll = false; s->swipe_action = SW_NONE;
     snprintf(s->title, sizeof(s->title), "%s", tr(title));
 }
 
@@ -154,6 +155,67 @@ static void move_sel(Sheet *s, int d) {
     ensure_visible(s);
 }
 
+// deslizar: anchos de los botones que quedan a la vista y umbral de la acción completa
+#define SW_PIN_W 76.0f
+#define SW_ACT_W 140.0f
+#define SW_FULL 0.6f
+static float swipe_full(Sheet *s) { return panel_w(s) * SW_FULL; }
+
+// gestiona el deslizamiento horizontal; devuelve -4 si hay que hacer una acción, -5 si consumió el toque
+static int sheet_swipe(Sheet *s, float list_y0) {
+    float pw = panel_w(s);
+    // al empezar a arrastrar se decide el eje (horizontal = deslizar el chat)
+    if (g_touch.held && g_touch.drag && !s->swiping && !s->vscroll) {
+        int dx = g_touch.x - g_touch.sx, dy = g_touch.y - g_touch.sy;
+        int hit = -1;
+        float y = list_y0;
+        for (int i = 0; i < s->n; i++) {
+            float h = item_h(&s->items[i]);
+            if (g_touch.sy >= y && g_touch.sy < y + h && g_touch.sy > SH_TOP) hit = i;
+            y += h;
+        }
+        if (abs(dx) > abs(dy) && hit >= 0 && s->items[hit].swipe && g_touch.sx < pw) {
+            if (s->swipe_item != hit) { s->swipe_item = hit; s->swipe_x = s->swipe_rest = 0; }
+            s->swiping = true;
+            s->swipe_start = s->swipe_rest;
+        } else { s->vscroll = true; s->swipe_rest = 0; }
+    }
+    if (s->swiping && g_touch.held) {
+        float x = s->swipe_start + (g_touch.x - g_touch.sx);
+        float lim = pw - 16;
+        if (x > lim) x = lim;
+        if (x < -lim) x = -lim;
+        s->swipe_x = x;
+        return -5;
+    }
+    if (s->swiping && g_touch.up) {
+        s->swiping = false;
+        float x = s->swipe_x, full = swipe_full(s);
+        if (x > full) { s->swipe_action = SW_PIN; s->held_item = s->swipe_item; s->swipe_rest = 0; return -4; }
+        if (x < -full) { s->swipe_action = SW_DELETE; s->held_item = s->swipe_item; s->swipe_rest = 0; return -4; }
+        if (x > SW_PIN_W * 0.5f) s->swipe_rest = SW_PIN_W;
+        else if (x < -SW_ACT_W * 0.4f) s->swipe_rest = -SW_ACT_W;
+        else { s->swipe_rest = 0; }
+        return -5;
+    }
+    if (g_touch.up) s->vscroll = false;
+    // con los botones a la vista: tocar uno hace su acción, tocar fuera los oculta
+    if (s->swipe_item >= 0 && s->swipe_rest != 0 && g_touch.up && !g_touch.drag) {
+        float y = list_y0;
+        for (int i = 0; i < s->swipe_item; i++) y += item_h(&s->items[i]);
+        float h = item_h(&s->items[s->swipe_item]);
+        bool row = g_touch.y >= y && g_touch.y < y + h && g_touch.sy >= y && g_touch.sy < y + h;
+        int act = SW_NONE;
+        if (row && s->swipe_rest > 0 && g_touch.x < SW_PIN_W) act = SW_PIN;
+        if (row && s->swipe_rest < 0 && g_touch.x >= pw - SW_ACT_W && g_touch.x < pw)
+            act = g_touch.x < pw - SW_ACT_W / 2 ? SW_RENAME : SW_DELETE;
+        s->swipe_rest = 0;
+        if (act) { s->swipe_action = act; s->held_item = s->swipe_item; return -4; }
+        return -5;
+    }
+    return -1;
+}
+
 int sheet_update(Sheet *s) {
     if (!s->open) return -1;
     if (s->closing) {
@@ -166,6 +228,18 @@ int sheet_update(Sheet *s) {
     float maxs = sheet_content_h(s) - (SCR_H - SH_TOP);
     if (maxs < 0) maxs = 0;
 
+    if (s->swipe_item >= s->n) s->swipe_item = -1;
+    if (!s->swiping) s->swipe_x = approach(s->swipe_x, s->swipe_rest, 18);
+    if (s->swipe_item >= 0 && s->swipe_rest != 0 && (g_kdown & (KEY_B | KEY_UP | KEY_DOWN))) {
+        s->swipe_rest = 0;              // B o moverse con la cruceta oculta los botones
+        if (g_kdown & KEY_B) return -1;
+    }
+    {
+        int r = sheet_swipe(s, SH_TOP - s->scroll);
+        if (r == -4) return -4;
+        if (r == -5) { s->scroll = approach(s->scroll, s->scroll_target, 16); return -1; }
+    }
+
     if (g_kdown & KEY_B) { sheet_close(s); return -1; }
     if (g_krepeat & KEY_DOWN) move_sel(s, 1);
     if (g_krepeat & KEY_UP) move_sel(s, -1);
@@ -175,7 +249,7 @@ int sheet_update(Sheet *s) {
     if ((g_kdown & KEY_Y) && s->sel >= 0) { s->held_item = s->sel; return -3; }
 
     // táctil
-    if (g_touch.held && g_touch.drag && g_touch.sy > SH_TOP && g_touch.sx < pw) {
+    if (g_touch.held && g_touch.drag && g_touch.sy > SH_TOP && g_touch.sx < pw && !s->swiping) {
         s->scroll_target -= (g_touch.y - g_touch.py);
         s->scroll = s->scroll_target;
     }
@@ -202,6 +276,40 @@ static void draw_toggle(float x, float y, bool on, float alpha) {
     draw_circle(on ? x + 22 : x + 8, y + 8, 6, col_alpha(on ? (T.dark ? col_hex(0x062E6F) : 0xFFFFFFFF) : T.text3, alpha));
 }
 
+// botones bajo un chat deslizado: Fijar a la izquierda; Renombrar y Eliminar a la derecha
+static void swipe_button(IconId ic, const char *label, float x, float y, float w, float h, u32 bg, u32 fg, float a) {
+    if (w < 1) return;
+    draw_rect(x, y, w, h, bg);
+    float cx = x + w / 2;
+    float sc = 0.4f;
+    float lw = text_width(label, sc);
+    if (lw > w - 6) sc *= (w - 6) / lw;
+    draw_icon(ic, cx, y + h / 2 - 8, 15, col_alpha(fg, a));
+    text_draw_center(label, cx, y + h / 2 + 4, sc, col_alpha(fg, a));
+}
+
+static void draw_swipe_actions(Sheet *s, SheetItem *it, float ox, float y, float pw, float h, float sx) {
+    u32 white = 0xFFFFFFFF;
+    float full = swipe_full(s);
+    if (sx > 0) {
+        bool armed = sx > full;
+        u32 bg = armed ? col_lerp(T.accent, T.text, 0.15f) : T.accent;
+        float a = clampf(sx / (SW_PIN_W * 0.7f), 0, 1);
+        // el botón se queda pegado al borde izquierdo y crece con el dedo
+        swipe_button(IC_PIN, it->pinned ? tr("No fijar") : tr("Fijar"), ox, y, sx, h, bg, T.dark ? col_hex(0x062E6F) : white, a);
+    } else {
+        float w = -sx;
+        float a = clampf(w / (SW_ACT_W * 0.6f), 0, 1);
+        if (w > full) {
+            swipe_button(IC_TRASH, tr("Eliminar"), ox + pw - w, y, w, h, col_lerp(T.danger, 0xFF000000, 0.1f), white, 1);
+        } else {
+            float bw = w / 2;
+            swipe_button(IC_PEN, tr("Renombrar"), ox + pw - w, y, bw, h, T.surface2, T.text, a);
+            swipe_button(IC_TRASH, tr("Eliminar"), ox + pw - bw, y, bw, h, T.danger, white, a);
+        }
+    }
+}
+
 void sheet_draw(Sheet *s) {
     if (!s->open) return;
     float a = ease_out_cubic(s->anim);
@@ -222,7 +330,16 @@ void sheet_draw(Sheet *s) {
             y += h; continue;
         }
         bool sel = i == s->sel;
-        bool press = touch_in(ox, y, pw, h) && g_touch.y > SH_TOP;
+        bool press = touch_in(ox, y, pw, h) && g_touch.y > SH_TOP && !(i == s->swipe_item && s->swipe_rest != 0);
+        float sx = (i == s->swipe_item) ? s->swipe_x : 0;
+        bool clip = fabsf(sx) > 0.5f;
+        if (clip) {
+            gfx_clip(ox, fmaxf(y, oy + SH_TOP), pw, y + h - fmaxf(y, oy + SH_TOP));
+            draw_swipe_actions(s, it, ox, y, pw, h, sx);
+            draw_rect(ox + sx, y, pw, h, T.bg2);
+        }
+        float ox0 = ox;
+        ox += sx;
         if (sel || press) draw_rrect(ox + 4, y + 1, pw - 8, h - 2, 10, press ? T.pill_hi : col_alpha(T.accent_soft, 1));
         float tx = ox + 14;
         u32 fg = it->disabled ? T.text3 : T.text;
@@ -251,6 +368,8 @@ void sheet_draw(Sheet *s) {
             break;
         }
         }
+        ox = ox0;
+        if (clip) gfx_clip_off();
         y += h;
     }
     // barra de desplazamiento

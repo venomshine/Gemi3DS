@@ -36,7 +36,11 @@ typedef struct {
     int icon; u32 icon_col;
     char label[100]; char sub[140]; char value[40];
     int right; int id; bool header; bool disabled;
+    bool swipe;              // se puede deslizar (chats: → fijar, ← renombrar / eliminar)
+    bool pinned;             // para el texto del botón Fijar / No fijar
 } SheetItem;
+
+enum { SW_NONE, SW_PIN, SW_RENAME, SW_DELETE };
 
 typedef struct {
     bool open, closing, from_left;
@@ -47,13 +51,20 @@ typedef struct {
     float scroll, scroll_target;
     int chosen, held_item;
     bool hit_right;          // el último toque fue en el accesorio derecho (p. ej. la X)
+    // deslizar elementos (estilo WhatsApp)
+    int swipe_item;          // elemento deslizado o abierto (-1 ninguno)
+    float swipe_x, swipe_rest;   // desplazamiento actual y de reposo (>0 izquierda visible, <0 derecha)
+    float swipe_start;
+    bool swiping;            // el arrastre actual es horizontal sobre swipe_item
+    bool vscroll;            // el arrastre actual es vertical (desplaza la lista)
+    int swipe_action;        // SW_* elegido (sheet_update devuelve -4)
 } Sheet;
 
 void sheet_open(Sheet *s, int kind, const char *title, bool from_left);
 void sheet_close(Sheet *s);
 SheetItem *sheet_add(Sheet *s, int icon, const char *label, const char *sub, int right, int id);
 void sheet_header(Sheet *s, const char *label);
-int  sheet_update(Sheet *s);            // índice elegido o -1; -2 = cerrado
+int  sheet_update(Sheet *s);            // índice elegido o -1; -2 = cerrado; -3 mantener; -4 acción deslizando
 void sheet_draw(Sheet *s);
 bool sheet_visible(Sheet *s);
 SheetItem *sheet_selected(Sheet *s);

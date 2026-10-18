@@ -105,9 +105,31 @@ void gfx_frame_begin(void) {
 
 void gfx_frame_end(void) { C3D_FrameEnd(0); }
 
+static C3D_RenderTarget *s_cur;
+
 void gfx_target(C3D_RenderTarget *t, u32 clear) {
     C2D_TargetClear(t, clear);
     C2D_SceneBegin(t);
+    s_cur = t;
+}
+
+// recorte rectangular (coordenadas de pantalla; el framebuffer de la 3DS está girado 90°)
+void gfx_clip(float x, float y, float w, float h) {
+    C2D_Flush();
+    int sw = s_cur == g_top ? TOP_W : BOT_W;
+    int l = 240 - (int)(y + h), t = sw - (int)(x + w), r = 240 - (int)y, b = sw - (int)x;
+    if (l < 0) l = 0;
+    if (t < 0) t = 0;
+    if (r > 240) r = 240;
+    if (b > sw) b = sw;
+    if (r < l) r = l;
+    if (b < t) b = t;
+    C3D_SetScissor(GPU_SCISSOR_NORMAL, l, t, r, b);
+}
+
+void gfx_clip_off(void) {
+    C2D_Flush();
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
 }
 
 // ---------------------------------------------------------------- color

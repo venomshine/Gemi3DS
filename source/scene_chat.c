@@ -396,6 +396,7 @@ static void open_drawer(void) {
         fmt_when(m->updated, when, sizeof(when));
         SheetItem *it = sheet_add(&S, m->pinned ? IC_PIN : IC_CHAT, m->title, when, (g_chat && !strcmp(g_chat->id, m->id)) ? SR_CHECK : SR_NONE, i);
         if (m->pinned) it->icon_col = T.accent;
+        it->swipe = true; it->pinned = m->pinned;
         shown++;
     }
     if (!shown) {
@@ -586,6 +587,48 @@ static void attach_image(const char *path) {
     img_load_tex(path, &s_att_tex, 96, 64);
 }
 
+// vuelve a abrir el cajón conservando la posición (tras fijar o renombrar)
+static void reopen_drawer(void) {
+    bool was = S.open && S.kind == SK_DRAWER;
+    float sc = S.scroll; int sel = S.sel;
+    open_drawer(); S.anim = 1;
+    if (was) { S.scroll = S.scroll_target = sc; if (sel < S.n) S.sel = sel; }
+}
+
+// fijar (1), cambiar nombre (2) o eliminar (3) el chat s_opt_id: desde el menú o deslizando
+static void chat_option(int action) {
+    int ci = -1;
+    for (int k = 0; k < g_nindex; k++) if (!strcmp(g_index[k].id, s_opt_id)) ci = k;
+    if (ci < 0) { sheet_close(&S); return; }
+    ChatMeta *cm = &g_index[ci];
+    if (action == SW_PIN) {
+        bool cur = g_chat && !strcmp(g_chat->id, cm->id);
+        Chat *c = cur ? g_chat : chat_load(cm->id);
+        bool pinned = false;
+        if (c) { c->pinned = !c->pinned; pinned = c->pinned; chat_save(c); if (!cur) chat_free(c); }
+        toast(pinned ? _("Chat fijado") : _("Chat desfijado"));
+        reopen_drawer();
+    } else if (action == SW_RENAME) {
+        char t[100] = "";
+        if (kb_input(_("Nuevo nombre del chat"), cm->title, t, sizeof(t), false, false) && t[0]) {
+            bool cur = g_chat && !strcmp(g_chat->id, cm->id);
+            Chat *c = cur ? g_chat : chat_load(cm->id);
+            if (c) { snprintf(c->title, sizeof(c->title), "%s", t); c->titled = true; chat_save(c); if (!cur) chat_free(c); }
+        }
+        reopen_drawer();
+    } else if (action == SW_DELETE) {
+        char m[200]; snprintf(m, sizeof(m), _("Se eliminará \"%.60s\" de forma permanente."), cm->title);
+        dialog_open(DLG_DEL_CHAT, _("¿Eliminar chat?"), m, _("Eliminar"), true);
+    }
+}
+
+static void handle_sheet_swipe(int idx, int action) {
+    SheetItem *it = &S.items[idx];
+    if (S.kind != SK_DRAWER || it->id < 0 || it->id >= g_nindex) return;
+    snprintf(s_opt_id, sizeof(s_opt_id), "%s", g_index[it->id].id);
+    chat_option(action);
+}
+
 // ------------------------------------------------------------ elección en hojas
 static void handle_sheet_choice(int idx) {
     SheetItem *it = &S.items[idx];
@@ -607,32 +650,9 @@ static void handle_sheet_choice(int idx) {
         } else if (id == -13) open_settings(-1);
         else if (id >= 0 && id < g_nindex) { open_chat(g_index[id].id); sheet_close(&S); }
         break;
-    case SK_CHATOPT: {
-        int ci = -1;
-        for (int k = 0; k < g_nindex; k++) if (!strcmp(g_index[k].id, s_opt_id)) ci = k;
-        if (ci < 0) { sheet_close(&S); break; }
-        ChatMeta *cm = &g_index[ci];
-        if (id == 1) {
-            bool cur = g_chat && !strcmp(g_chat->id, cm->id);
-            Chat *c = cur ? g_chat : chat_load(cm->id);
-            bool pinned = false;
-            if (c) { c->pinned = !c->pinned; pinned = c->pinned; chat_save(c); if (!cur) chat_free(c); }
-            toast(pinned ? _("Chat fijado") : _("Chat desfijado"));
-            open_drawer(); S.anim = 1;
-        } else if (id == 2) {
-            char t[100] = "";
-            if (kb_input(_("Nuevo nombre del chat"), cm->title, t, sizeof(t), false, false) && t[0]) {
-                bool cur = g_chat && !strcmp(g_chat->id, cm->id);
-                Chat *c = cur ? g_chat : chat_load(cm->id);
-                if (c) { snprintf(c->title, sizeof(c->title), "%s", t); c->titled = true; chat_save(c); if (!cur) chat_free(c); }
-            }
-            open_drawer(); S.anim = 1;
-        } else if (id == 3) {
-            char m[200]; snprintf(m, sizeof(m), _("Se eliminará \"%.60s\" de forma permanente."), cm->title);
-            dialog_open(DLG_DEL_CHAT, _("¿Eliminar chat?"), m, _("Eliminar"), true);
-        }
+    case SK_CHATOPT:
+        chat_option(id);
         break;
-    }
     case SK_MODELS:
         if (id == 99) { gem_models_fetch(); toast(_("Actualizando la lista de modelos…")); }
         else if (id >= 100) {
@@ -762,7 +782,7 @@ static void handle_dialog(int ctx, bool ok) {
             index_remove(id);
             toast(_("Chat eliminado"));
         }
-        open_drawer(); S.anim = 1;
+        reopen_drawer();
     } else if (ctx == DLG_LOGOUT) {
         gem_stop_wait();
         if (g_chat->n) chat_save(g_chat);
@@ -951,6 +971,7 @@ void chat_update(void) {
         int r = sheet_update(&S);
         if (r >= 0) handle_sheet_choice(r);
         else if (r == -3 && S.held_item >= 0) handle_sheet_hold(S.held_item);
+        else if (r == -4 && S.held_item >= 0) handle_sheet_swipe(S.held_item, S.swipe_action);
         update_overlay_from_sheet();
         if (!S.open && s_ov == OV_PHOTO) { s_ov = OV_NONE; tex_free(&s_ov_tex); }
         return;

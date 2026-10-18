@@ -34,6 +34,8 @@ void gfx_tick(void);          // calcula g_dt (antes de la lógica)
 void gfx_frame_begin(void);   // empieza a dibujar (después de la lógica)
 void gfx_frame_end(void);
 void gfx_target(C3D_RenderTarget *t, u32 clear);
+void gfx_clip(float x, float y, float w, float h);   // solo se dibuja dentro del rectángulo
+void gfx_clip_off(void);
 
 // color
 static inline u32 RGBA(u8 r, u8 g, u8 b, u8 a) { return C2D_Color32(r, g, b, a); }
