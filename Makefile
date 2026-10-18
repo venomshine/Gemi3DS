@@ -36,7 +36,7 @@ CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map) -Wl,--gc-sections -Wl,--wrap=fontGlyphIndexFromCodePoint
 
-LIBS	:= -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lcitro2d -lcitro3d -lctru -lm $(EXTRA_LIBS)
+LIBS	:= -lcurl -lmbedtls -lmbedx509 -lmbedcrypto -lz -lcitro2d -lcitro3d -lctru -lm $(EXTRA_LIBS)
 LIBDIRS	:= $(PORTLIBS) $(CTRULIB)
 
 #---------------------------------------------------------------------------------

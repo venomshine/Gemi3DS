@@ -6,7 +6,9 @@
 - Nuevo apartado "Uso de los modelos" en Ajustes: porcentaje que queda del día, peticiones, tokens, límites y estado de cada modelo en tiempo real.
 - Gemini recuerda por sí mismo lo importante que le cuentas (se puede desactivar en Información guardada).
 - Fecha y porcentaje de batería en la pantalla superior.
-- Compartir por QR ahora lleva una URL corta: el teléfono abre el mensaje completo desde la consola y lo copia con un botón.
+- Compartir por QR ahora lleva una URL corta: el teléfono abre el mensaje completo desde la consola, con su foto si la tiene, y lo copia con un botón.
+- Vincular sin conexión: la app explica cómo conectarse, muestra el QR en cuanto hay Wi-Fi y no pierde la clave si no hay Internet (la comprueba sola al volver la conexión).
+- En "Ver foto" la ruta del archivo se desvanece a los pocos segundos.
 - Si se acaba el saldo prepago de Google o se alcanza el tope de gasto mensual, la app lo explica claramente y lo muestra en "Uso de los modelos".
 - Sin conexión a Internet la app avisa enseguida con un mensaje claro, en vez de probar modelo tras modelo como si fueran lentos.
 - Corregido: la vista previa de la cámara a veces se quedaba congelada.

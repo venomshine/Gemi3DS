@@ -45,16 +45,18 @@ La clave se guarda solo en tu tarjeta SD (`sd:/3ds/Gemi3DS/config.json`). Tambi�
 - Respuestas **en vivo**, palabra por palabra, con Markdown: títulos, negritas, listas, citas, tablas y código.
 - Modos **Rápido** y **Razonamiento**: eligen solos el modelo Flash más rápido y cambian a otro gratuito si uno va lento o se satura. Modo **Pro** y lista completa de modelos, que usa exactamente el modelo que elijas.
 - **Touchpad** en la pantalla táctil para recorrer la conversación.
-- **Historial** en la SD con títulos automáticos, chats fijados, renombrar, borrar y **búsqueda** por título o contenido. **Chat temporal** que no se guarda.
-- **Información guardada**: dile «recuerda que…» y Gemini lo tendrá en cuenta en todos tus chats. Puedes verla, editarla y borrarla.
+- **Historial** en la SD con títulos automáticos, chats fijados, renombrar, borrar y **búsqueda** por título o contenido. **Desliza un chat** como en WhatsApp: hacia la derecha para fijarlo, hacia la izquierda para renombrarlo o eliminarlo. **Chat temporal** que no se guarda.
+- **Información guardada**: Gemini recuerda por sí mismo lo importante que le cuentas (o dile «recuerda que…»). Puedes verla, editarla, borrarla o desactivar el guardado automático.
 - **Cámara**, **fotos de la SD** y **notas de voz** para preguntar sobre imágenes o hablar con Gemini.
-- **Compartir por QR** una respuesta al teléfono o guardarla como `.txt`.
-- Tema oscuro y claro, tres tamaños de texto.
+- **Compartir por QR** un mensaje al teléfono: el QR abre en el móvil el texto completo (y la foto, si la tiene) servido desde la propia consola, con un botón para copiarlo. También se puede guardar como `.txt`.
+- **Uso de los modelos** en tiempo real: peticiones, tokens, estado de cada modelo y el porcentaje que queda del día en cuanto Google indica el límite.
+- Avisos claros sin Wi-Fi o sin Internet, y si se acaba el saldo o se alcanza el tope de gasto de una clave de pago.
+- Fecha, hora y batería en la pantalla superior. Tema oscuro y claro, tres tamaños de texto.
 - Idiomas: **español, inglés y japonés** (o el de la consola).
 
 Gemi3DS no genera imágenes: la 3DS no tiene memoria, potencia ni pantalla para ello. Para eso, usa Gemini en el navegador o en el móvil.
 
-El nivel gratuito de la API tiene límites por minuto y por día. Si se alcanzan, la app lo avisa.
+El nivel gratuito de la API tiene límites por minuto y por día que Google cambia de vez en cuando y que dependen de tu cuenta. Si se alcanzan, la app lo avisa; los límites exactos de tu clave están en [AI Studio](https://aistudio.google.com/usage).
 
 ## Controles
 
@@ -70,13 +72,6 @@ El nivel gratuito de la API tiene límites por minuto y por día. Si se alcanzan
 | **START** | Salir |
 
 Todo se puede hacer también con la pantalla táctil.
-
-## Problemas conocidos
-
-Se corregirán en una próxima versión:
-
-- **Sonido del menú HOME:** al seleccionar Gemi3DS en el menú de la consola suena un tono distinto al previsto, parecido a un teléfono.
-- **Cámara congelada:** al abrir la cámara para hacer una foto, a veces la imagen se queda congelada en el primer fotograma tras unos segundos. La app sigue funcionando: puedes cerrar la cámara, cambiarla o hacer la foto, pero la vista previa no se actualiza. Mientras tanto, puedes hacer la foto con la cámara de la 3DS y elegirla en **+ → Fotos de la consola**.
 
 ## Errores y sugerencias
 
@@ -101,8 +96,9 @@ source/   código de la app
   scene_login.c   vinculación por QR
   scene_chat.c    conversación, menús y herramientas
   gemini.c        API de Gemini (streaming, modelos, títulos, memoria)
+  usage.c         uso de los modelos (peticiones, tokens y límites)
   net.c           hilo de red (libcurl + mbedTLS)
-  pair.c          servidor web local para vincular desde el teléfono
+  pair.c          servidor web local: vincular y compartir mensajes con el teléfono
   md.c            maquetador de Markdown
   gfx.c ui.c icons.c   gráficos, componentes e íconos
   store.c         configuración e historial en la SD
@@ -111,7 +107,7 @@ source/   código de la app
 lib/      cJSON, QR Code generator, stb_image
 romfs/    página de vinculación y certificados raíz
 cia/      banner, sonido y configuración del .cia
-tools/    traducciones (tools/i18n_tr.py)
+tools/    traducciones (tools/i18n_tr.py) y sonido del banner (tools/gen_banner_wav.py)
 ```
 
 Para añadir o corregir traducciones, edita `tools/i18n_tr.py` y ejecuta `python3 tools/gen_i18n.py`.
@@ -126,9 +122,9 @@ Para añadir o corregir traducciones, edita `tools/i18n_tr.py` y ejecuta `python
 
 **Setup:** the app shows a QR code. Scan it with your phone (same Wi-Fi network), create a free API key in Google AI Studio, paste it on the page and you're done. The key is stored only on your SD card.
 
-**Build:** devkitPro with `3ds-dev 3ds-curl 3ds-mbedtls`, then `make` (or `make cia` with bannertool and makerom).
+**New in 1.1.0:** swipe chats to pin, rename or delete them; live model usage (requests, tokens and the share of today's quota left once Google reports the limit); Gemini remembers important things you tell it; share messages (with their photo) to your phone through a short QR link; date and battery on the top screen; clear warnings without Wi-Fi/Internet or when a paid key runs out of credit; fixed the frozen camera preview and the HOME menu banner sound.
 
-Known issues (to be fixed in the next version): the HOME menu banner plays the wrong sound, and the camera preview can freeze after a few seconds (use + → Console photos as a workaround).
+**Build:** devkitPro with `3ds-dev 3ds-curl 3ds-mbedtls`, then `make` (or `make cia` with bannertool and makerom).
 
 Bugs and ideas: [issues](https://github.com/venomshine/Gemi3DS/issues) or [Discord](https://discord.com/invite/yVKp8JwV4e).
 
