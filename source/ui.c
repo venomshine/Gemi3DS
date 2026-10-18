@@ -276,37 +276,43 @@ static void draw_toggle(float x, float y, bool on, float alpha) {
     draw_circle(on ? x + 22 : x + 8, y + 8, 6, col_alpha(on ? (T.dark ? col_hex(0x062E6F) : 0xFFFFFFFF) : T.text3, alpha));
 }
 
-// botones bajo un chat deslizado: Fijar a la izquierda; Renombrar y Eliminar a la derecha
-static void swipe_button(IconId ic, const char *label, float x, float y, float w, float h, u32 bg, u32 fg, float a) {
-    if (w < 1) return;
-    draw_rect(x, y, w, h, bg);
-    float cx = x + w / 2;
-    float sc = 0.4f;
-    float lw = text_width(label, sc);
-    if (lw > w - 6) sc *= (w - 6) / lw;
-    draw_icon(ic, cx, y + h / 2 - 8, 15, col_alpha(fg, a));
-    text_draw_center(label, cx, y + h / 2 + 4, sc, col_alpha(fg, a));
+// botones bajo un chat deslizado: Fijar a la izquierda; Renombrar y Eliminar a la derecha.
+// Tienen tamaño fijo y entran pegados al borde de la fila: el icono y el texto van fijos dentro
+// del botón (si se ve el 20 % del botón, se ve el 20 % de su contenido), nunca se escalan.
+static float s_sw_l, s_sw_r;    // bordes del panel: los botones nunca se dibujan fuera
+
+static void swipe_button(IconId ic, const char *label, float cx, float x0, float x1, float y, float h,
+                         float clip_y, float clip_h, u32 bg, u32 fg) {
+    if (x0 < s_sw_l) x0 = s_sw_l;
+    if (x1 > s_sw_r) x1 = s_sw_r;
+    if (x1 - x0 < 0.5f) return;
+    gfx_clip(x0, clip_y, x1 - x0, clip_h);
+    draw_rect(x0, y, x1 - x0, h, bg);
+    draw_icon(ic, cx, y + h / 2 - 8, 15, fg);
+    text_draw_center(label, cx, y + h / 2 + 4, 0.4f, fg);
 }
 
-static void draw_swipe_actions(Sheet *s, SheetItem *it, float ox, float y, float pw, float h, float sx) {
+static void draw_swipe_actions(Sheet *s, SheetItem *it, float ox, float y, float pw, float h, float sx,
+                               float clip_y, float clip_h) {
     u32 white = 0xFFFFFFFF;
     float full = swipe_full(s);
+    s_sw_l = ox; s_sw_r = ox + pw;
     if (sx > 0) {
-        bool armed = sx > full;
-        u32 bg = armed ? col_lerp(T.accent, T.text, 0.15f) : T.accent;
-        float a = clampf(sx / (SW_PIN_W * 0.7f), 0, 1);
-        // el botón se queda pegado al borde izquierdo y crece con el dedo
-        swipe_button(IC_PIN, it->pinned ? tr("No fijar") : tr("Fijar"), ox, y, sx, h, bg, T.dark ? col_hex(0x062E6F) : white, a);
+        // Fijar: pegado al borde izquierdo de la fila; al pasar del ancho se estira por la izquierda
+        u32 bg = sx > full ? col_lerp(T.accent, T.text, 0.15f) : T.accent;
+        swipe_button(IC_PIN, it->pinned ? tr("No fijar") : tr("Fijar"), ox + sx - SW_PIN_W / 2, ox, ox + sx, y, h,
+                     clip_y, clip_h, bg, T.dark ? col_hex(0x062E6F) : white);
     } else {
-        float w = -sx;
-        float a = clampf(w / (SW_ACT_W * 0.6f), 0, 1);
-        if (w > full) {
-            swipe_button(IC_TRASH, tr("Eliminar"), ox + pw - w, y, w, h, col_lerp(T.danger, 0xFF000000, 0.1f), white, 1);
-        } else {
-            float bw = w / 2;
-            swipe_button(IC_PEN, tr("Renombrar"), ox + pw - w, y, bw, h, T.surface2, T.text, a);
-            swipe_button(IC_TRASH, tr("Eliminar"), ox + pw - bw, y, bw, h, T.danger, white, a);
-        }
+        float w = -sx, edge = ox + pw - w;            // borde derecho de la fila desplazada
+        float half = SW_ACT_W / 2;
+        // Eliminar se estira desde la derecha y va tapando a Renombrar hasta ocupar toda la fila
+        float del_w = w <= SW_ACT_W ? half : half + (w - SW_ACT_W) * (full - half) / (full - SW_ACT_W);
+        float del_x = w <= SW_ACT_W ? edge + half : ox + pw - del_w;
+        if (del_x < edge) del_x = edge;
+        swipe_button(IC_PEN, tr("Renombrar"), edge + half / 2, edge, fminf(edge + half, del_x), y, h,
+                     clip_y, clip_h, T.surface2, T.text);
+        u32 dbg = w > full ? col_lerp(T.danger, 0xFF000000, 0.12f) : T.danger;
+        swipe_button(IC_TRASH, tr("Eliminar"), del_x + half / 2, del_x, ox + pw, y, h, clip_y, clip_h, dbg, white);
     }
 }
 
@@ -334,8 +340,9 @@ void sheet_draw(Sheet *s) {
         float sx = (i == s->swipe_item) ? s->swipe_x : 0;
         bool clip = fabsf(sx) > 0.5f;
         if (clip) {
-            gfx_clip(ox, fmaxf(y, oy + SH_TOP), pw, y + h - fmaxf(y, oy + SH_TOP));
-            draw_swipe_actions(s, it, ox, y, pw, h, sx);
+            float cy = fmaxf(y, oy + SH_TOP), ch = y + h - cy;
+            draw_swipe_actions(s, it, ox, y, pw, h, sx, cy, ch);
+            gfx_clip(ox, cy, pw, ch);
             draw_rect(ox + sx, y, pw, h, T.bg2);
         }
         float ox0 = ox;
