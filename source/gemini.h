@@ -30,6 +30,8 @@ void  gem_stop_wait(void);
 bool  gem_streaming(void);
 Msg  *gem_target(void);
 const char *gem_status(void);             // texto de estado ("Probando con…") o ""
+int   gem_model_paused(const char *id);   // segundos que le quedan en pausa (0 = disponible)
+const char *gem_active_model(void);       // modelo que está respondiendo ahora ("" si ninguno)
 int   gem_poll(void);                     // 1 si terminó en este frame
 int   gem_take_memory_event(void);        // >0 recuerdos guardados, <0 olvidados (una vez)
 

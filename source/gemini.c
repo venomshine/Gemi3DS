@@ -14,6 +14,7 @@
 //  * Pro o un modelo elegido a mano: se usa SIEMPRE ese modelo; si falla se explica el motivo.
 #include "gemini.h"
 #include "net.h"
+#include "usage.h"
 #include "store.h"
 #include "util.h"
 #include "i18n.h"
@@ -33,9 +34,10 @@ static NetReq s_chat, s_models, s_valid, s_title;
 static Msg *s_target, *s_orphan;
 static Chat *s_target_chat;
 static bool s_chat_active, s_models_active, s_valid_active, s_title_active;
-static char s_title_chat[24];
+static char s_title_chat[24], s_title_model[80];
 static char s_status[120];
 static int s_mem_event;
+static volatile int s_tok_in, s_tok_out;     // usageMetadata de la petición en curso (hilo de red)
 
 // reintentos
 static bool s_no_think, s_think_retry;
@@ -145,6 +147,15 @@ const char *gem_mode_label(int mode) {
 }
 
 const char *gem_status(void) { return s_chat_active ? s_status : ""; }
+
+int gem_model_paused(const char *id) {
+    for (int i = 0; i < 8; i++)
+        if (s_cool[i].id[0] && !strcmp(s_cool[i].id, id) && now_ms() < s_cool[i].until)
+            return (int)((s_cool[i].until - now_ms()) / 1000) + 1;
+    return 0;
+}
+
+const char *gem_active_model(void) { return s_chat_active && s_target ? s_target->model : ""; }
 
 int gem_take_memory_event(void) { int e = s_mem_event; s_mem_event = 0; return e; }
 
@@ -420,6 +431,13 @@ static void handle_event(const char *json) {
         cJSON_Delete(j);
         return;
     }
+    cJSON *um = cJSON_GetObjectItem(j, "usageMetadata");
+    if (um) {
+        cJSON *pi = cJSON_GetObjectItem(um, "promptTokenCount"), *co = cJSON_GetObjectItem(um, "candidatesTokenCount"),
+              *tt = cJSON_GetObjectItem(um, "thoughtsTokenCount");
+        if (cJSON_IsNumber(pi)) s_tok_in = pi->valueint;
+        s_tok_out = (cJSON_IsNumber(co) ? co->valueint : 0) + (cJSON_IsNumber(tt) ? tt->valueint : 0);
+    }
     cJSON *cand = cJSON_GetArrayItem(cJSON_GetObjectItem(j, "candidates"), 0);
     cJSON *pf = cJSON_GetObjectItem(j, "promptFeedback");
     cJSON *br = pf ? cJSON_GetObjectItem(pf, "blockReason") : NULL;
@@ -507,6 +525,7 @@ static bool submit_with(Chat *c, Msg *target, const char *model) {
     s_chat.first_byte_timeout_ms = g_cfg.mode == MODE_FAST ? FAST_FIRST_BYTE_MS : (g_cfg.mode == MODE_THINK ? THINK_FIRST_BYTE_MS : 0);
     s_sse_len = 0;
     if (s_sse) s_sse[0] = 0;
+    s_tok_in = s_tok_out = 0;
     s_target = target;
     s_target_chat = c;
     target->state = MST_STREAM;
@@ -594,6 +613,9 @@ int gem_poll(void) {
     bool empty = m->tlen == 0;
     bool user_cancel = s_chat.cancel && !s_chat.fb_timed_out;
     long code = s_chat.http_code;
+    if (code)                 // cada intento que llegó a Google cuenta para el cupo
+        usage_record(m->model, code, s_tok_in, s_tok_out,
+                     s_chat.t_first ? (int)(s_chat.t_first - s_chat.t_start) : 0, s_chat.resp);
     bool retryable = s_chat.fb_timed_out || code == 429 || code == 500 || code == 503 || code == 504 ||
                      (code == 404 && s_ntried > 1);
     const char *next = NULL;
@@ -691,6 +713,7 @@ void gem_title_request(Chat *c) {
     s_title.on_data = NULL;
     s_title.first_byte_timeout_ms = 20000;
     SCPY(s_title_chat, c->id);
+    SCPY(s_title_model, model);
     s_title_active = net_submit(&s_title);
 }
 
@@ -698,6 +721,19 @@ void gem_title_poll(void) {
     if (!s_title_active || net_busy(&s_title)) return;
     s_title_active = false;
     free(s_title.body); s_title.body = NULL;
+    if (s_title.http_code) {
+        int tin = 0, tout = 0;
+        cJSON *uj = s_title.resp ? cJSON_Parse(s_title.resp) : NULL;
+        cJSON *um = uj ? cJSON_GetObjectItem(uj, "usageMetadata") : NULL;
+        if (um) {
+            cJSON *pi = cJSON_GetObjectItem(um, "promptTokenCount"), *co = cJSON_GetObjectItem(um, "candidatesTokenCount"),
+                  *tt = cJSON_GetObjectItem(um, "thoughtsTokenCount");
+            tin = cJSON_IsNumber(pi) ? pi->valueint : 0;
+            tout = (cJSON_IsNumber(co) ? co->valueint : 0) + (cJSON_IsNumber(tt) ? tt->valueint : 0);
+        }
+        cJSON_Delete(uj);
+        usage_record(s_title_model, s_title.http_code, tin, tout, 0, s_title.resp);
+    }
     if (s_title.state != REQ_DONE || s_title.http_code != 200 || !s_title.resp) return;
     cJSON *j = cJSON_Parse(s_title.resp);
     if (!j) return;

@@ -14,6 +14,7 @@
 #include "util.h"
 #include "scenes.h"
 #include "pair.h"
+#include "usage.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +26,7 @@
 
 // ------------------------------------------------------------ estado
 enum { SK_NONE, SK_DRAWER, SK_MODELS, SK_TOOLS, SK_ACTIONS, SK_SETTINGS, SK_CHATOPT, SK_PHOTOS,
-       SK_MEMORY, SK_MEMOPT, SK_ABOUT, SK_LANG };
+       SK_MEMORY, SK_MEMOPT, SK_ABOUT, SK_LANG, SK_USAGE };
 enum { OV_NONE, OV_QR, OV_IMAGE, OV_CAMERA, OV_PHOTO, OV_INFO };
 enum { DLG_DEL_CHAT = 1, DLG_LOGOUT, DLG_CLEAR, DLG_EXIT, DLG_MEM_DEL, DLG_MEM_CLEAR };
 
@@ -33,6 +34,7 @@ enum { DLG_DEL_CHAT = 1, DLG_LOGOUT, DLG_CLEAR, DLG_EXIT, DLG_MEM_DEL, DLG_MEM_C
 #define URL_DISCORD "https://discord.com/invite/yVKp8JwV4e"
 #define URL_KOFI    "https://ko-fi.com/venomshine"
 #define URL_GEMINI  "https://gemini.google.com"
+#define URL_USAGE   "https://aistudio.google.com/usage"
 #define ABOUT_TEXT \
     "Muchísimas gracias por usar Gemi3DS y por tu apoyo. Cada estrella en GitHub, cada mensaje en Discord y cada café " \
     "en Ko-fi me ayudan a seguir mejorándolo, y habrá futuras actualizaciones con más funciones.\n" \
@@ -75,6 +77,9 @@ static char s_photos[200][160]; static int s_nphotos; static int s_photo_shown =
 #define PAD_W 304.0f
 #define PAD_H 96.0f
 #define ROW_Y 146.0f
+
+static void fmt_tokens(int n, char *out, int sz);
+static void open_usage(int keep_sel);
 
 static float ts(void) { return g_cfg.text_size == TS_LARGE ? 0.58f : (g_cfg.text_size == TS_SMALL ? 0.45f : 0.51f); }
 static u32 on_accent(void) { return T.dark ? col_hex(0x062E6F) : 0xFFFFFFFF; }
@@ -457,6 +462,13 @@ static void open_settings(int keep_sel) {
     snprintf(it->value, sizeof(it->value), "%s", g_cfg.text_size == TS_LARGE ? _("Grande") : (g_cfg.text_size == TS_SMALL ? _("Pequeño") : _("Normal")));
     sheet_header(&S, _("Respuestas"));
     sheet_add(&S, IC_BULB, _("Mostrar razonamiento"), _("En modo Razonamiento y Pro"), g_cfg.show_thoughts ? SR_ON : SR_OFF, 6);
+    {
+        int ur, ut; usage_totals(&ur, &ut);
+        char tk[16]; fmt_tokens(ut, tk, sizeof(tk));
+        if (ur) snprintf(sub, sizeof(sub), _("Hoy: %d %s · %s tokens"), ur, ur == 1 ? _("petición") : _("peticiones"), tk);
+        else snprintf(sub, sizeof(sub), _("Peticiones, tokens y límites de cada modelo"));
+        sheet_add(&S, IC_BOLT, _("Uso de los modelos"), sub, SR_CHEV, 13);
+    }
     snprintf(sub, sizeof(sub), _("%d modelos disponibles con tu clave"), g_models.n);
     sheet_add(&S, IC_REFRESH, gem_models_busy() ? _("Actualizando modelos…") : _("Actualizar lista de modelos"), sub, SR_NONE, 10);
     if (g_nindex > 0) {
@@ -468,6 +480,64 @@ static void open_settings(int keep_sel) {
     snprintf(sub, sizeof(sub), _("Versión %s · por %s"), APP_VERSION, APP_AUTHOR);
     sheet_add(&S, IC_INFO, _("Acerca de " APP_NAME), sub, SR_CHEV, 12);
     if (keep_sel >= 0) { S.sel = keep_sel; S.scroll = sc; S.scroll_target = sct; S.anim = 1; }
+}
+
+// 1234 -> "1234", 12345 -> "12,3k" (12.3k en inglés y japonés), 1234567 -> "1,2M"
+static void fmt_tokens(int n, char *out, int sz) {
+    char dec = g_lang == LANG_ES ? ',' : '.';
+    if (n < 10000) snprintf(out, sz, "%d", n);
+    else if (n < 1000000) snprintf(out, sz, "%d%c%dk", n / 1000, dec, (n / 100) % 10);
+    else snprintf(out, sz, "%d%c%dM", n / 1000000, dec, (n / 100000) % 10);
+}
+
+static const char *model_name(const char *id) {
+    for (int i = 0; i < g_models.n; i++) if (!strcmp(g_models.list[i].id, id)) return g_models.list[i].name;
+    return id;
+}
+
+// estado de un modelo para la lista de uso
+static const char *usage_state(const UsageModel *u, u32 *col) {
+    *col = T.accent;
+    if (!strcmp(gem_active_model(), u->id)) return _("En uso");
+    if (u->limit_day && u->req >= u->limit_day) { *col = T.danger; return _("Sin cupo"); }
+    if (u->last_code == 429 && osGetTime() - u->last_time < 60000) { *col = T.danger; return _("Límite"); }
+    if (gem_model_paused(u->id)) { *col = T.text3; return _("En pausa"); }
+    if (u->last_code >= 500) { *col = T.text3; return _("Saturado"); }
+    *col = T.ok;
+    return "OK";
+}
+
+static float s_usage_refresh;
+
+// uso de los modelos: se rehace cada segundo para que los datos estén al día
+static void open_usage(int keep_sel) {
+    float sc = S.scroll, sct = S.scroll_target;
+    sheet_open(&S, SK_USAGE, _("Uso de los modelos"), false);
+    S.anim = 1;
+    s_usage_refresh = 0;
+    int n = usage_count(), shown = 0;
+    sheet_header(&S, _("Hoy, contado en esta consola"));
+    for (int i = 0; i < n; i++) {
+        UsageModel *u = usage_get(i);
+        if (!u->req && strcmp(u->id, gem_current_model())) continue;
+        char sub[140], tk[16];
+        fmt_tokens(u->tok_in + u->tok_out, tk, sizeof(tk));
+        int rpm = usage_rpm(u);
+        if (u->limit_day) snprintf(sub, sizeof(sub), _("%d/%d hoy · %d/min · %s tokens"), u->req, u->limit_day, rpm, tk);
+        else snprintf(sub, sizeof(sub), _("%d hoy · %d/min · %s tokens"), u->req, rpm, tk);
+        SheetItem *it = sheet_add(&S, IC_SPARK, model_name(u->id), sub, SR_VALUE, i);
+        u32 c; snprintf(it->value, sizeof(it->value), "%s", usage_state(u, &c));
+        it->icon_col = c;
+        shown++;
+    }
+    if (!shown) {
+        SheetItem *e = sheet_add(&S, -1, _("Aún no hay peticiones hoy"), _("Escribe a Gemini y aparecerán aquí"), SR_NONE, -9);
+        e->disabled = true;
+    }
+    sheet_header(&S, "");
+    sheet_add(&S, IC_QR, _("Ver el uso oficial en AI Studio"), "aistudio.google.com/usage", SR_CHEV, -2);
+    if (keep_sel >= 0 && keep_sel < S.n) { S.sel = keep_sel; S.scroll = sc; S.scroll_target = sct; }
+    else for (int i = 0; i < S.n; i++) if (!S.items[i].header && !S.items[i].disabled) { S.sel = i; break; }
 }
 
 static void open_lang(void) {
@@ -700,6 +770,7 @@ static void handle_sheet_choice(int idx) {
         else if (id == 10) { gem_models_fetch(); toast(_("Actualizando la lista de modelos…")); }
         else if (id == 11) dialog_open(DLG_CLEAR, _("¿Borrar todo el historial?"), _("Se eliminarán todas tus conversaciones guardadas. No se puede deshacer."), _("Borrar todo"), true);
         else if (id == 12) { open_about(); return; }
+        else if (id == 13) { open_usage(-1); return; }
         if (S.open && S.kind == SK_SETTINGS && !g_dialog.open) open_settings(keep);
         break;
     }
@@ -713,6 +784,8 @@ static void handle_sheet_choice(int idx) {
         break;
     case SK_ABOUT:
         break;   // el QR se muestra arriba al resaltar cada enlace
+    case SK_USAGE:
+        break;   // los detalles (o el QR de AI Studio) se muestran arriba al resaltar
     case SK_MEMORY:
         if (id == -1) {
             char *b = calloc(1, 600);
@@ -967,6 +1040,7 @@ void chat_update(void) {
         return;
     }
 
+    if (S.open && S.kind == SK_USAGE && !S.closing && !g_touch.held && (s_usage_refresh += g_dt) > 1.0f) open_usage(S.sel);
     if (S.open) {
         int r = sheet_update(&S);
         if (r >= 0) handle_sheet_choice(r);
@@ -1273,6 +1347,87 @@ static void draw_overlay_top(void) {
     }
 }
 
+static void stat_box(float x, float y, float w, const char *label, const char *val, const char *sub, u32 vc, float a) {
+    draw_rrect(x, y, w, 58, 12, col_alpha(T.surface, a));
+    text_draw_clip(label, x + 10, y + 6, w - 20, 0.42f, col_alpha(T.text3, a));
+    text_draw_clip(val, x + 10, y + 20, w - 20, 0.72f, col_alpha(vc, a));
+    if (sub && sub[0]) text_draw_clip(sub, x + 10, y + 42, w - 20, 0.38f, col_alpha(T.text3, a));
+}
+
+// detalles del modelo resaltado en «Uso de los modelos»
+static void draw_usage_top(SheetItem *it, float a) {
+    draw_rect(0, 0, TOP_W, SCR_H, col_alpha(T.bg, a));
+    int hh, mm;
+    char reset[120];
+    if (usage_reset_local(&hh, &mm)) snprintf(reset, sizeof(reset), _("El cupo gratuito se reinicia a las %02d:%02d (medianoche en California)."), hh, mm);
+    else snprintf(reset, sizeof(reset), _("El cupo gratuito se reinicia a medianoche, hora de California."));
+    if (it && it->id == -2) {
+        draw_qr(URL_USAGE, 12, 8, 224, a);
+        float tx = 248;
+        text_wrap_lines(_("Uso oficial"), 140, 0.62f, 2, tx, 16, col_alpha(T.text, a), true);
+        text_wrap_lines(_("Google muestra en AI Studio el uso exacto y los límites de tu clave. Escanéalo con tu teléfono."), 140, 0.45f, 7, tx, 46, col_alpha(T.text2, a), true);
+        text_wrap_lines(URL_USAGE + 8, 140, 0.4f, 2, tx, 200, col_alpha(T.accent, a), true);
+        return;
+    }
+    UsageModel *u = (it && it->id >= 0) ? usage_get(it->id) : NULL;
+    if (!u) {
+        draw_icon(IC_BOLT, 22, 22, 18, col_alpha(T.accent, a));
+        text_draw(_("Uso de los modelos"), 40, 13, 0.62f, col_alpha(T.text, a));
+        int r, t; usage_totals(&r, &t);
+        char v[24], tk[16];
+        snprintf(v, sizeof(v), "%d", r); fmt_tokens(t, tk, sizeof(tk));
+        stat_box(14, 46, 182, _("Peticiones hoy"), v, NULL, T.text, a);
+        stat_box(204, 46, 182, _("Tokens hoy"), tk, NULL, T.text, a);
+        text_wrap_lines(_("Google no informa de cuánto cupo te queda, así que Gemi3DS cuenta aquí cada petición. "
+                          "Si Google rechaza una por límite, se apunta el límite que indica."), 360, 0.45f, 4, 20, 120, col_alpha(T.text2, a), true);
+        text_wrap_lines(reset, 360, 0.43f, 2, 20, 196, col_alpha(T.text3, a), true);
+        return;
+    }
+    u32 sc; const char *st = usage_state(u, &sc);
+    draw_sparkle(22, 22, 9, g_time * 0.5f, a);
+    text_draw_clip(model_name(u->id), 40, 11, 270, 0.62f, col_alpha(T.text, a));
+    float sw = text_width(st, 0.45f) + 20;
+    draw_rrect(386 - sw, 12, sw, 20, 10, col_alpha(col_lerp(T.surface, sc, 0.25f), a));
+    text_draw_center(st, 386 - sw / 2, 15, 0.45f, col_alpha(sc, a));
+    text_draw_clip(u->id, 40, 32, 340, 0.38f, col_alpha(T.text3, a));
+
+    char v[32], sub[64], tk[16], ti[16], to[16];
+    // peticiones hoy (con barra si se conoce el límite)
+    if (u->limit_day) { snprintf(v, sizeof(v), "%d / %d", u->req, u->limit_day); snprintf(sub, sizeof(sub), _("Límite diario según Google")); }
+    else { snprintf(v, sizeof(v), "%d", u->req); snprintf(sub, sizeof(sub), _("%d correctas"), u->ok); }
+    stat_box(14, 50, 182, _("Peticiones hoy"), v, sub, T.text, a);
+    if (u->limit_day) {            // barra junto al número: cuánto del límite diario se ha usado
+        float f = clampf((float)u->req / u->limit_day, 0, 1);
+        float bx = 24 + text_width(v, 0.72f) + 12, bw = 186 - bx;
+        if (bw > 20) {
+            draw_rrect(bx, 79, bw, 4, 2, col_alpha(T.divider, a));
+            draw_rrect(bx, 79, fmaxf(4, bw * f), 4, 2, col_alpha(f >= 0.9f ? T.danger : T.accent, a));
+        }
+    }
+    int rpm = usage_rpm(u);
+    if (u->limit_min) snprintf(v, sizeof(v), "%d / %d", rpm, u->limit_min); else snprintf(v, sizeof(v), "%d", rpm);
+    stat_box(204, 50, 182, _("Último minuto"), v, u->limit_min ? _("Límite por minuto según Google") : _("Peticiones en 60 s"), T.text, a);
+    fmt_tokens(u->tok_in + u->tok_out, tk, sizeof(tk)); fmt_tokens(u->tok_in, ti, sizeof(ti)); fmt_tokens(u->tok_out, to, sizeof(to));
+    snprintf(sub, sizeof(sub), _("%s entrada · %s salida"), ti, to);
+    stat_box(14, 116, 182, _("Tokens hoy"), tk, sub, T.text, a);
+    if (u->last_time) {
+        int ago = (int)((osGetTime() - u->last_time) / 1000);
+        if (ago < 60) snprintf(sub, sizeof(sub), _("hace %d s"), ago);
+        else if (ago < 3600) snprintf(sub, sizeof(sub), _("hace %d min"), ago / 60);
+        else snprintf(sub, sizeof(sub), _("hace %d h"), ago / 3600);
+        if (u->last_code == 200 && u->last_ms > 0) snprintf(v, sizeof(v), "%.1f s", u->last_ms / 1000.0f);
+        else snprintf(v, sizeof(v), u->last_code == 200 ? "OK" : "Error %d", u->last_code);
+        stat_box(204, 116, 182, _("Última respuesta"), v, sub, u->last_code == 200 ? T.text : T.danger, a);
+    } else {
+        stat_box(204, 116, 182, _("Última respuesta"), "—", _("Sin peticiones en esta sesión"), T.text3, a);
+    }
+    int ps = gem_model_paused(u->id);
+    char note[200];
+    if (ps) snprintf(note, sizeof(note), _("En pausa %d min: iba lento o saturado; los modos automáticos usan otro mientras tanto."), (ps + 59) / 60);
+    else snprintf(note, sizeof(note), "%s", reset);
+    text_wrap_lines(note, 364, 0.43f, 3, 18, 184, col_alpha(T.text3, a), true);
+}
+
 // información contextual en la pantalla superior mientras hay una hoja abierta
 static void draw_sheet_context_top(void) {
     if (!S.open) return;
@@ -1307,6 +1462,8 @@ static void draw_sheet_context_top(void) {
         }
         char n[60]; snprintf(n, sizeof(n), "%d %s", mem_count(), mem_count() == 1 ? _("dato guardado") : _("datos guardados"));
         text_draw(n, 20, 212, 0.45f, col_alpha(T.text3, a));
+    } else if (S.kind == SK_USAGE) {
+        draw_usage_top(it, a);
     } else if (S.kind == SK_ABOUT) {
         draw_rect(0, 0, TOP_W, SCR_H, col_alpha(T.bg, a));
         const char *url = NULL, *name = NULL, *desc = NULL;

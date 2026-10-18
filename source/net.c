@@ -8,6 +8,8 @@
 // Gemi3DS - red
 #include "i18n.h"
 #include "net.h"
+#include "usage.h"
+#include <strings.h>
 #include <curl/curl.h>
 #include <malloc.h>
 #include <string.h>
@@ -54,13 +56,33 @@ static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *ud) {
     return n;
 }
 
+// "Date: Sun, 18 Oct 2026 04:50:00 GMT" -> hora UTC (para el día del cupo de la API)
+static void parse_date(const char *buf, size_t n) {
+    char line[64];
+    if (n >= sizeof(line)) return;
+    memcpy(line, buf, n); line[n] = 0;
+    int d, y, hh, mi, ss; char mon[4];
+    if (sscanf(line + 5, " %*3s, %d %3s %d %d:%d:%d", &d, mon, &y, &hh, &mi, &ss) != 6) return;
+    static const char *M = "JanFebMarAprMayJunJulAugSepOctNovDec";
+    const char *f = strstr(M, mon);
+    if (!f || y < 2020) return;
+    int m = (int)(f - M) / 3 + 1;
+    // días desde 1970 (algoritmo civil)
+    int yy = y - (m <= 2);
+    long long era = yy / 400;
+    unsigned yoe = (unsigned)(yy - era * 400);
+    unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+    long long days = era * 146097 + (long long)(yoe * 365 + yoe / 4 - yoe / 100 + doy) - 719468;
+    usage_set_utc((time_t)(days * 86400 + hh * 3600 + mi * 60 + ss));
+}
+
 static size_t header_cb(char *buf, size_t size, size_t nitems, void *ud) {
     NetReq *r = ud;
     size_t n = size * nitems;
     if (n > 9 && !strncmp(buf, "HTTP/", 5)) {
         const char *sp = memchr(buf, ' ', n);
         if (sp) r->http_code = strtol(sp + 1, NULL, 10);
-    }
+    } else if (n > 10 && !strncasecmp(buf, "date:", 5)) parse_date(buf, n);
     return n;
 }
 

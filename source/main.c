@@ -17,6 +17,7 @@
 #include "ui.h"
 #include "net.h"
 #include "store.h"
+#include "usage.h"
 #include "gemini.h"
 #include "media.h"
 #include "scenes.h"
@@ -77,6 +78,7 @@ int main(int argc, char **argv) {
     i18n_apply(g_cfg.lang);
     theme_set(g_cfg.dark);
     index_load();
+    usage_load();
     gem_api_init();
     hidSetRepeatParameters(18, 5);
 
