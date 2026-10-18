@@ -7,6 +7,7 @@
 - Gemini recuerda por sí mismo lo importante que le cuentas (se puede desactivar en Información guardada).
 - Fecha y porcentaje de batería en la pantalla superior.
 - Compartir por QR ahora lleva una URL corta: el teléfono abre el mensaje completo desde la consola y lo copia con un botón.
+- Si se acaba el saldo prepago de Google o se alcanza el tope de gasto mensual, la app lo explica claramente y lo muestra en "Uso de los modelos".
 - Sin conexión a Internet la app avisa enseguida con un mensaje claro, en vez de probar modelo tras modelo como si fueran lentos.
 - Corregido: la vista previa de la cámara a veces se quedaba congelada.
 - Corregido: el sonido del banner en el menú HOME sonaba como un teléfono (sonido nuevo).

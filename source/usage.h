@@ -13,6 +13,10 @@
 
 #define USAGE_RECENT 32
 
+// problemas de facturación que Google indica en sus errores (los mensajes llegan siempre en inglés)
+enum { BILL_NONE, BILL_CREDITS, BILL_CAP, BILL_DENIED };
+int  usage_billing_problem(long http_code, const char *resp);
+
 typedef struct {
     char id[80];
     int  day;                          // día del cupo (AAAAMMDD, hora del Pacífico)
@@ -20,6 +24,7 @@ typedef struct {
     int  tok_in, tok_out;              // tokens hoy (entrada y salida, razonamiento incluido)
     int  limit_day, limit_min;         // límites que Google indicó en un 429 (0 = desconocido)
     int  last_code, last_ms;           // último código HTTP y tiempo hasta el primer byte
+    int  last_bill;                    // BILL_* de la última petición
     u64  last_time;                    // osGetTime() de la última petición
     u64  recent[USAGE_RECENT];         // marcas de tiempo para contar peticiones por minuto
 } UsageModel;

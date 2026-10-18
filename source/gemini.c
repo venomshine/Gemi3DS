@@ -182,6 +182,15 @@ static void api_error_text(NetReq *r, const char *model, bool manual, char *out,
         snprintf(out, n, _("No se pudo conectar con Google: parece que no hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo."));
     else if (r->no_link)
         snprintf(out, n, _("No hay conexión a Internet. Comprueba que la consola está conectada a una red Wi-Fi con acceso a Internet y vuelve a intentarlo."));
+    else if (usage_billing_problem(c, r->resp) == BILL_CREDITS)
+        snprintf(out, n, _("Se acabó el saldo prepago de tu cuenta de Google, así que la clave no puede usar ningún modelo de pago. "
+                           "Recárgalo (o activa la recarga automática) en Google AI Studio: aistudio.google.com → Billing. "
+                           "Si acabas de recargar, Google puede tardar unos minutos en reconocerlo."));
+    else if (usage_billing_problem(c, r->resp) == BILL_CAP)
+        snprintf(out, n, _("Tu proyecto alcanzó su tope de gasto mensual en Google. Puedes subirlo en Google AI Studio "
+                           "(aistudio.google.com → Billing → Spend cap) o esperar al mes que viene."));
+    else if (usage_billing_problem(c, r->resp) == BILL_DENIED)
+        snprintf(out, n, _("Google ha bloqueado el acceso a la API para tu proyecto. Revisa el aviso en Google AI Studio (aistudio.google.com)."));
     else if (r->fb_timed_out)
         snprintf(out, n, _("Gemini tardó demasiado en empezar a responder. Inténtalo de nuevo en un momento."));
     else if (c == 400 && (strstr(msg, "API key") || strstr(msg, "API_KEY")))
@@ -637,8 +646,10 @@ int gem_poll(void) {
     if (code)                 // cada intento que llegó a Google cuenta para el cupo
         usage_record(m->model, code, s_tok_in, s_tok_out,
                      s_chat.t_first ? (int)(s_chat.t_first - s_chat.t_start) : 0, s_chat.resp);
-    bool retryable = (s_chat.fb_timed_out && !s_chat.no_link) || code == 429 || code == 500 || code == 503 || code == 504 ||
-                     (code == 404 && s_ntried > 1);
+    // sin saldo o con el tope de gasto alcanzado falla cualquier modelo: no se prueban otros ni se pausan
+    bool billing = usage_billing_problem(code, s_chat.resp) != BILL_NONE;
+    bool retryable = !billing && ((s_chat.fb_timed_out && !s_chat.no_link) || code == 429 || code == 500 || code == 503 || code == 504 ||
+                     (code == 404 && s_ntried > 1));
     const char *next = NULL;
 
     if (user_cancel) {

@@ -354,4 +354,17 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
 'Google no informa de cuánto cupo te queda: los límites gratuitos cambian y dependen de tu cuenta. Gemi3DS cuenta aquí cada petición y, la primera vez que Google rechaza una por límite, apunta el límite exacto que indica para mostrarte el porcentaje que queda.':
     ('Google does not report how much quota you have left: free limits change and depend on your account. Gemi3DS counts every request here and, the first time Google rejects one for a limit, saves the exact limit it reports to show you the percentage left.',
      'Googleは残りの枠を教えてくれません。無料枠の上限は変わることがあり、アカウントによっても異なります。Gemi3DSはここで毎回のリクエストを数え、上限で初めて拒否されたときにGoogleが示す正確な上限を記録して、残りの割合を表示します。'),
+# --- facturación (saldo prepago, tope de gasto)
+'Se acabó el saldo prepago de tu cuenta de Google, así que la clave no puede usar ningún modelo de pago. Recárgalo (o activa la recarga automática) en Google AI Studio: aistudio.google.com → Billing. Si acabas de recargar, Google puede tardar unos minutos en reconocerlo.':
+    ('Your Google account\'s prepaid balance has run out, so the key cannot use any paid model. Top it up (or turn on auto-reload) in Google AI Studio: aistudio.google.com → Billing. If you just topped up, Google may take a few minutes to recognize it.',
+     'Googleアカウントの前払い残高がなくなったため、このキーでは有料モデルを使えません。Google AI Studio(aistudio.google.com → Billing)でチャージするか、自動チャージを有効にしてください。チャージした直後は、反映まで数分かかることがあります。'),
+'Tu proyecto alcanzó su tope de gasto mensual en Google. Puedes subirlo en Google AI Studio (aistudio.google.com → Billing → Spend cap) o esperar al mes que viene.':
+    ('Your project has reached its monthly spending cap at Google. You can raise it in Google AI Studio (aistudio.google.com → Billing → Spend cap) or wait until next month.',
+     'プロジェクトがGoogleの月間支出上限に達しました。Google AI Studio(aistudio.google.com → Billing → Spend cap)で上限を上げるか、来月までお待ちください。'),
+'Google ha bloqueado el acceso a la API para tu proyecto. Revisa el aviso en Google AI Studio (aistudio.google.com).':
+    ('Google has blocked API access for your project. Check the notice in Google AI Studio (aistudio.google.com).',
+     'Googleがこのプロジェクトのアクセスを停止しました。Google AI Studio(aistudio.google.com)でお知らせを確認してください。'),
+'Sin saldo': ('No balance', '残高なし'),
+'Tope de gasto': ('Spend cap', '支出上限'),
+'Bloqueado': ('Blocked', '停止中'),
 }

@@ -499,6 +499,9 @@ static const char *model_name(const char *id) {
 static const char *usage_state(const UsageModel *u, u32 *col) {
     *col = T.accent;
     if (!strcmp(gem_active_model(), u->id)) return _("En uso");
+    if (u->last_bill == BILL_CREDITS) { *col = T.danger; return _("Sin saldo"); }
+    if (u->last_bill == BILL_CAP) { *col = T.danger; return _("Tope de gasto"); }
+    if (u->last_bill == BILL_DENIED) { *col = T.danger; return _("Bloqueado"); }
     if (u->limit_day && u->req >= u->limit_day) { *col = T.danger; return _("Sin cupo"); }
     if (u->last_code == 429 && osGetTime() - u->last_time < 60000) { *col = T.danger; return _("Límite"); }
     if (gem_model_paused(u->id)) { *col = T.text3; return _("En pausa"); }

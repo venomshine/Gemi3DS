@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #define USAGE_FILE APP_DIR "/usage.json"
 #define USAGE_MAX 24
@@ -98,6 +99,7 @@ static void usage_save(void) {
         cJSON_AddNumberToObject(o, "ld", u->limit_day);
         cJSON_AddNumberToObject(o, "lm", u->limit_min);
         cJSON_AddNumberToObject(o, "code", u->last_code);
+        cJSON_AddNumberToObject(o, "bill", u->last_bill);
         cJSON_AddItemToArray(a, o);
     }
     char *s = cJSON_PrintUnformatted(j);
@@ -129,9 +131,28 @@ void usage_load(void) {
         snprintf(u->id, sizeof(u->id), "%s", id->valuestring);
         u->day = jint(o, "day"); u->req = jint(o, "req"); u->ok = jint(o, "ok"); u->limited = jint(o, "lim");
         u->tok_in = jint(o, "tin"); u->tok_out = jint(o, "tout");
-        u->limit_day = jint(o, "ld"); u->limit_min = jint(o, "lm"); u->last_code = jint(o, "code");
+        u->limit_day = jint(o, "ld"); u->limit_min = jint(o, "lm"); u->last_code = jint(o, "code"); u->last_bill = jint(o, "bill");
     }
     cJSON_Delete(j);
+}
+
+// ------------------------------------------------------------ facturación
+static bool has_ci(const char *hay, const char *needle) {
+    if (!hay) return false;
+    size_t nl = strlen(needle);
+    for (; *hay; hay++) if (!strncasecmp(hay, needle, nl)) return true;
+    return false;
+}
+
+// textos de Google (en inglés, sea cual sea el idioma de la app):
+//  402 (antes 429) "Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects ..."
+//  429             "Your project has exceeded its monthly spending cap"
+//  403             "Your project has been denied access"
+int usage_billing_problem(long http_code, const char *resp) {
+    if (http_code == 402 || has_ci(resp, "prepayment credits") || has_ci(resp, "prepay balance")) return BILL_CREDITS;
+    if ((http_code == 429 || http_code == 403) && has_ci(resp, "spending cap")) return BILL_CAP;
+    if (http_code == 403 && has_ci(resp, "denied access")) return BILL_DENIED;
+    return BILL_NONE;
 }
 
 // ------------------------------------------------------------ registro
@@ -197,7 +218,8 @@ void usage_record(const char *model, long http_code, int tok_in, int tok_out, in
     roll_day(u, day_key());
     u->req++;
     if (http_code == 200) u->ok++;
-    if (http_code == 429) { u->limited++; learn_limits(u, resp); }
+    u->last_bill = usage_billing_problem(http_code, resp);
+    if (http_code == 429 && !u->last_bill) { u->limited++; learn_limits(u, resp); }
     // si se pasa del límite guardado y Google sigue respondiendo, el límite subió: se olvida hasta el próximo aviso
     if (http_code == 200 && u->limit_day && u->req > u->limit_day) u->limit_day = 0;
     u->tok_in += tok_in; u->tok_out += tok_out;
