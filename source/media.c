@@ -89,16 +89,30 @@ bool img_info(const char *path, int *w, int *h) {
 // ------------------------------------------------------------ cámara
 #define CAM_W 400
 #define CAM_H 240
+#define CAM_BYTES (CAM_W * CAM_H * 2)
 static bool s_cam;
 static bool s_front;
-static u16 *s_cambuf, *s_lastframe;
-static Handle s_camev;
+static u16 *s_cambuf[2], *s_lastframe;
+static int s_camcur;                  // búfer que está recibiendo el fotograma actual
+static Handle s_camev, s_camerr;
 static u32 s_camsz;
 static bool s_have_frame;
+static u64 s_cam_last;                // último fotograma recibido (ms)
 
 static void cam_receive(void) {
     if (s_camev) { svcCloseHandle(s_camev); s_camev = 0; }
-    CAMU_SetReceiving(&s_camev, s_cambuf, PORT_CAM1, CAM_W * CAM_H * 2, (s16)s_camsz);
+    CAMU_SetReceiving(&s_camev, s_cambuf[s_camcur], PORT_CAM1, CAM_BYTES, (s16)s_camsz);
+}
+
+// rearma la captura: si la app no recoge un fotograma a tiempo, CAMU desborda el búfer
+// y deja de capturar (la vista previa se quedaba congelada)
+static void cam_restart(void) {
+    CAMU_StopCapture(PORT_CAM1);
+    CAMU_ClearBuffer(PORT_CAM1);
+    if (s_camerr) svcClearEvent(s_camerr);
+    CAMU_StartCapture(PORT_CAM1);
+    cam_receive();
+    s_cam_last = osGetTime();
 }
 
 bool cam_open(bool front) {
@@ -116,14 +130,14 @@ bool cam_open(bool front) {
     CAMU_GetMaxBytes(&s_camsz, CAM_W, CAM_H);
     CAMU_SetTransferBytes(PORT_CAM1, s_camsz, CAM_W, CAM_H);
     CAMU_Activate(sel);
-    if (!s_cambuf) s_cambuf = malloc(CAM_W * CAM_H * 2);
-    if (!s_lastframe) s_lastframe = malloc(CAM_W * CAM_H * 2);
-    if (!s_cambuf || !s_lastframe) { camExit(); return false; }
-    CAMU_ClearBuffer(PORT_CAM1);
-    CAMU_StartCapture(PORT_CAM1);
-    cam_receive();
+    for (int i = 0; i < 2; i++) if (!s_cambuf[i]) s_cambuf[i] = malloc(CAM_BYTES);
+    if (!s_lastframe) s_lastframe = malloc(CAM_BYTES);
+    if (!s_cambuf[0] || !s_cambuf[1] || !s_lastframe) { CAMU_Activate(SELECT_NONE); camExit(); return false; }
+    if (!s_camerr) CAMU_GetBufferErrorInterruptEvent(&s_camerr, PORT_CAM1);
+    s_camcur = 0;
     s_cam = true;
     s_have_frame = false;
+    cam_restart();
     return true;
 }
 
@@ -131,6 +145,7 @@ void cam_close(void) {
     if (!s_cam) return;
     CAMU_StopCapture(PORT_CAM1);
     if (s_camev) { svcCloseHandle(s_camev); s_camev = 0; }
+    if (s_camerr) { svcCloseHandle(s_camerr); s_camerr = 0; }
     CAMU_Activate(SELECT_NONE);
     camExit();
     s_cam = false;
@@ -140,18 +155,27 @@ bool cam_is_open(void) { return s_cam; }
 bool cam_front(void) { return s_front; }
 
 bool cam_update(Texture *t) {
-    if (!s_cam || !s_camev) return false;
+    if (!s_cam) return false;
+    // desbordamiento o sin fotogramas desde hace rato: se reinicia la captura
+    if ((s_camerr && svcWaitSynchronization(s_camerr, 0) == 0) || !s_camev ||
+        osGetTime() - s_cam_last > (s_have_frame ? 600u : 2000u)) {
+        cam_restart();
+        return false;
+    }
     if (svcWaitSynchronization(s_camev, 0) != 0) return false;
-    memcpy(s_lastframe, s_cambuf, CAM_W * CAM_H * 2);
-    s_have_frame = true;
+    // el siguiente fotograma va al otro búfer, así la recepción no espera a la copia
+    u16 *done = s_cambuf[s_camcur];
+    s_camcur ^= 1;
     cam_receive();
+    s_cam_last = osGetTime();
     if (s_front) {
         // espejo horizontal para la cámara interior
         for (int y = 0; y < CAM_H; y++) {
-            u16 *r = s_lastframe + y * CAM_W;
-            for (int x = 0; x < CAM_W / 2; x++) { u16 tmp = r[x]; r[x] = r[CAM_W - 1 - x]; r[CAM_W - 1 - x] = tmp; }
+            u16 *r = done + y * CAM_W, *o = s_lastframe + y * CAM_W;
+            for (int x = 0; x < CAM_W; x++) o[x] = r[CAM_W - 1 - x];
         }
-    }
+    } else memcpy(s_lastframe, done, CAM_BYTES);
+    s_have_frame = true;
     tex_from_rgb565(t, s_lastframe, CAM_W, CAM_H);
     return true;
 }
