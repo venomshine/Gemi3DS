@@ -285,4 +285,56 @@ A + ' Foto   ' + X + ' Cambiar cámara   ' + B + ' Cancelar': (A + ' Photo   ' +
 'Planifica un viaje': ('Plan a trip', '旅行を計画'),
 'Dame ideas': ('Give me ideas', 'アイデアを出す'),
 'Chat': ('Chat', 'チャット'),
+# --- compartir por URL (pair.c)
+'Este mensaje ya no está disponible. Vuelve a compartirlo desde la consola.':
+    ('This message is no longer available. Share it again from the console.', 'このメッセージはもう利用できません。本体からもう一度共有してください。'),
+'Mensaje compartido desde tu 3DS': ('Message shared from your 3DS', '3DSから共有されたメッセージ'),
+'Copiar texto': ('Copy text', 'テキストをコピー'),
+'Copiado': ('Copied', 'コピーしました'),
+'Escanéalo con tu teléfono (en la misma Wi-Fi) para ver y copiar el texto completo.':
+    ('Scan it with your phone (on the same Wi-Fi) to view and copy the full text.', 'スマホで読み取ると(同じWi-Fiで)全文を表示してコピーできます。'),
+# --- deslizar chats
+'Renombrar': ('Rename', '名前変更'),
+# --- uso de los modelos
+'Uso de los modelos': ('Model usage', 'モデルの使用状況'),
+'Hoy: %d %s · %s tokens': ('Today: %d %s · %s tokens', '今日: %d %s · %s トークン'),
+'petición': ('request', '回'),
+'peticiones': ('requests', '回'),
+'Peticiones, tokens y límites de cada modelo': ('Requests, tokens and limits for each model', 'モデルごとのリクエスト・トークン・上限'),
+'En uso': ('In use', '使用中'),
+'Sin cupo': ('No quota', '上限到達'),
+'Límite': ('Limit', '制限中'),
+'En pausa': ('Paused', '一時停止'),
+'Saturado': ('Overloaded', '混雑'),
+'Hoy, contado en esta consola': ('Today, counted on this console', '今日(この本体で集計)'),
+'%d/%d hoy · %d/min · %s tokens': ('%d/%d today · %d/min · %s tokens', '今日 %d/%d · %d/分 · %s トークン'),
+'%d hoy · %d/min · %s tokens': ('%d today · %d/min · %s tokens', '今日 %d · %d/分 · %s トークン'),
+'Aún no hay peticiones hoy': ('No requests yet today', '今日はまだリクエストがありません'),
+'Escribe a Gemini y aparecerán aquí': ('Write to Gemini and they will show up here', 'Geminiに話しかけるとここに表示されます'),
+'Ver el uso oficial en AI Studio': ('See official usage in AI Studio', 'AI Studioで公式の使用状況を見る'),
+'El cupo gratuito se reinicia a las %02d:%02d (medianoche en California).':
+    ('The free quota resets at %02d:%02d (midnight in California).', '無料枠は %02d:%02d(カリフォルニアの深夜0時)にリセットされます。'),
+'El cupo gratuito se reinicia a medianoche, hora de California.':
+    ('The free quota resets at midnight, California time.', '無料枠はカリフォルニア時間の深夜0時にリセットされます。'),
+'Uso oficial': ('Official usage', '公式の使用状況'),
+'Google muestra en AI Studio el uso exacto y los límites de tu clave. Escanéalo con tu teléfono.':
+    ('Google shows your key\'s exact usage and limits in AI Studio. Scan it with your phone.', 'AI Studioでキーの正確な使用量と上限を確認できます。スマホで読み取ってください。'),
+'Peticiones hoy': ('Requests today', '今日のリクエスト'),
+'Tokens hoy': ('Tokens today', '今日のトークン'),
+'Google no informa de cuánto cupo te queda, así que Gemi3DS cuenta aquí cada petición. Si Google rechaza una por límite, se apunta el límite que indica.':
+    ('Google does not report how much quota you have left, so Gemi3DS counts every request here. If Google rejects one for a limit, the limit it reports is saved.',
+     'Googleは残りの枠を教えてくれないため、Gemi3DSがここで毎回のリクエストを数えます。上限で拒否された場合は、Googleが示した上限を記録します。'),
+'Límite diario según Google': ('Daily limit reported by Google', 'Googleが示す1日の上限'),
+'%d correctas': ('%d successful', '成功 %d'),
+'Último minuto': ('Last minute', '直近1分'),
+'Límite por minuto según Google': ('Per-minute limit reported by Google', 'Googleが示す1分あたりの上限'),
+'Peticiones en 60 s': ('Requests in 60 s', '60秒間のリクエスト'),
+'%s entrada · %s salida': ('%s input · %s output', '入力 %s · 出力 %s'),
+'hace %d s': ('%d s ago', '%d秒前'),
+'hace %d min': ('%d min ago', '%d分前'),
+'hace %d h': ('%d h ago', '%d時間前'),
+'Última respuesta': ('Last response', '最後の応答'),
+'Sin peticiones en esta sesión': ('No requests this session', 'この起動中はリクエストなし'),
+'En pausa %d min: iba lento o saturado; los modos automáticos usan otro mientras tanto.':
+    ('Paused for %d min: it was slow or overloaded; automatic modes use another one meanwhile.', '%d分間一時停止中: 遅いか混雑していたため、自動モードは別のモデルを使います。'),
 }
