@@ -73,7 +73,7 @@ cia: all
 	@bannertool makebanner -i cia/banner.png -a cia/banner.wav -o $(BUILD)/banner.bnr
 	@bannertool makesmdh -s "$(APP_TITLE)" -l "$(APP_DESCRIPTION)" -p "$(APP_AUTHOR)" -i $(ICON) -o $(BUILD)/icon.icn
 	@makerom -f cia -o $(TARGET).cia -elf $(TARGET).elf -rsf cia/gemi3ds.rsf -icon $(BUILD)/icon.icn \
-		-banner $(BUILD)/banner.bnr -exefslogo -target t -DAPP_VERSION_MAJOR=1 -ver 1024
+		-banner $(BUILD)/banner.bnr -exefslogo -target t -DAPP_VERSION_MAJOR=1 -ver 1040
 	@echo built ... $(TARGET).cia
 
 all: $(BUILD)

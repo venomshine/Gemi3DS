@@ -14,7 +14,7 @@
 #include "i18n.h"
 
 #define APP_NAME    "Gemi3DS"
-#define APP_VERSION "1.0.0"
+#define APP_VERSION "1.1.0"
 #define APP_AUTHOR  "VENOMSHiNE"
 #define APP_DIR     "sdmc:/3ds/Gemi3DS"
 #define CHATS_DIR   APP_DIR "/chats"
