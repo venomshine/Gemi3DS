@@ -31,5 +31,7 @@ int  usage_count(void);
 UsageModel *usage_get(int i);          // ordenados por peticiones de hoy
 UsageModel *usage_find(const char *model);
 int  usage_rpm(const UsageModel *u);   // peticiones en los últimos 60 s
+void usage_set_limit(const char *model, int per_day);   // límite diario indicado a mano (0 = desconocido)
+float usage_left(const UsageModel *u); // fracción del límite diario que queda (0-1), o -1 si no se conoce
 void usage_totals(int *req, int *tokens);
 bool usage_reset_local(int *hh, int *mm);   // hora local de la consola en que se reinicia el cupo

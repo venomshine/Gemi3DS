@@ -523,7 +523,7 @@ static void open_usage(int keep_sel) {
         char sub[140], tk[16];
         fmt_tokens(u->tok_in + u->tok_out, tk, sizeof(tk));
         int rpm = usage_rpm(u);
-        if (u->limit_day) snprintf(sub, sizeof(sub), _("%d/%d hoy · %d/min · %s tokens"), u->req, u->limit_day, rpm, tk);
+        if (u->limit_day) snprintf(sub, sizeof(sub), _("Queda %d%% · %d/%d hoy · %s tokens"), (int)(usage_left(u) * 100), u->req, u->limit_day, tk);
         else snprintf(sub, sizeof(sub), _("%d hoy · %d/min · %s tokens"), u->req, rpm, tk);
         SheetItem *it = sheet_add(&S, IC_SPARK, model_name(u->id), sub, SR_VALUE, i);
         u32 c; snprintf(it->value, sizeof(it->value), "%s", usage_state(u, &c));
@@ -785,7 +785,19 @@ static void handle_sheet_choice(int idx) {
     case SK_ABOUT:
         break;   // el QR se muestra arriba al resaltar cada enlace
     case SK_USAGE:
-        break;   // los detalles (o el QR de AI Studio) se muestran arriba al resaltar
+        if (id >= 0) {   // tocar un modelo: indicar su límite diario (lo muestra AI Studio en "Rate limits")
+            UsageModel *u = usage_get(id);
+            if (!u) break;
+            char mid[80], cur[16] = "", in[16] = "";
+            snprintf(mid, sizeof(mid), "%s", u->id);
+            if (u->limit_day) snprintf(cur, sizeof(cur), "%d", u->limit_day);
+            if (kb_input(_("Peticiones al día de este modelo (míralo en AI Studio, en Rate limits)"), cur, in, sizeof(in), false, false)) {
+                usage_set_limit(mid, atoi(in));
+                toast(atoi(in) > 0 ? _("Límite diario guardado") : _("Límite diario borrado"));
+            }
+            open_usage(idx);
+        }
+        break;
     case SK_MEMORY:
         if (id == -1) {
             char *b = calloc(1, 600);
@@ -1418,27 +1430,40 @@ static void draw_usage_top(SheetItem *it, float a) {
     float sw = text_width(st, 0.45f) + 20;
     draw_rrect(386 - sw, 12, sw, 20, 10, col_alpha(col_lerp(T.surface, sc, 0.25f), a));
     text_draw_center(st, 386 - sw / 2, 15, 0.45f, col_alpha(sc, a));
-    text_draw_clip(u->id, 40, 32, 340, 0.38f, col_alpha(T.text3, a));
+    text_draw_clip(u->id, 40, 30, 340, 0.38f, col_alpha(T.text3, a));
+
+    // lo que queda del límite diario: barra fina con los colores del logo
+    float left = usage_left(u);
+    char lt[80];
+    if (left >= 0) snprintf(lt, sizeof(lt), _("Te queda el %d%% de hoy"), (int)(left * 100));
+    else snprintf(lt, sizeof(lt), "%s", _("Límite diario desconocido: toca el modelo para indicarlo"));
+    text_draw_clip(lt, 18, 48, 300, 0.45f, col_alpha(left >= 0 ? T.text : T.text3, a));
+    if (left >= 0) {
+        char pc[8]; snprintf(pc, sizeof(pc), "%d%%", (int)(left * 100));
+        text_draw_right(pc, 382, 46, 0.55f, col_alpha(gemini_grad(0.5f), a));
+    }
+    float bx = 18, by = 68, bw = 364, bh = 5;
+    draw_rrect(bx, by, bw, bh, bh / 2, col_alpha(T.surface2, a));
+    if (left > 0) {
+        float fw = bw * left;
+        gfx_clip(bx, by, fw, bh);
+        for (int k = 0; k < 24; k++)          // degradado fijo azul → morado → rosa; la barra lo va descubriendo
+            draw_grad_h(bx + bw * k / 24, by, bw / 24 + 1, bh, col_alpha(gemini_grad(k / 24.0f), a), col_alpha(gemini_grad((k + 1) / 24.0f), a));
+        gfx_clip_off();
+        draw_circle(bx + fw, by + bh / 2, 3.2f, col_alpha(gemini_grad(left), a));
+    }
 
     char v[32], sub[64], tk[16], ti[16], to[16];
-    // peticiones hoy (con barra si se conoce el límite)
-    if (u->limit_day) { snprintf(v, sizeof(v), "%d / %d", u->req, u->limit_day); snprintf(sub, sizeof(sub), _("Límite diario según Google")); }
+    // peticiones hoy
+    if (u->limit_day) { snprintf(v, sizeof(v), "%d / %d", u->req, u->limit_day); snprintf(sub, sizeof(sub), _("Límite diario")); }
     else { snprintf(v, sizeof(v), "%d", u->req); snprintf(sub, sizeof(sub), _("%d correctas"), u->ok); }
-    stat_box(14, 50, 182, _("Peticiones hoy"), v, sub, T.text, a);
-    if (u->limit_day) {            // barra junto al número: cuánto del límite diario se ha usado
-        float f = clampf((float)u->req / u->limit_day, 0, 1);
-        float bx = 24 + text_width(v, 0.72f) + 12, bw = 186 - bx;
-        if (bw > 20) {
-            draw_rrect(bx, 79, bw, 4, 2, col_alpha(T.divider, a));
-            draw_rrect(bx, 79, fmaxf(4, bw * f), 4, 2, col_alpha(f >= 0.9f ? T.danger : T.accent, a));
-        }
-    }
+    stat_box(14, 82, 182, _("Peticiones hoy"), v, sub, T.text, a);
     int rpm = usage_rpm(u);
     if (u->limit_min) snprintf(v, sizeof(v), "%d / %d", rpm, u->limit_min); else snprintf(v, sizeof(v), "%d", rpm);
-    stat_box(204, 50, 182, _("Último minuto"), v, u->limit_min ? _("Límite por minuto según Google") : _("Peticiones en 60 s"), T.text, a);
+    stat_box(204, 82, 182, _("Último minuto"), v, u->limit_min ? _("Límite por minuto según Google") : _("Peticiones en 60 s"), T.text, a);
     fmt_tokens(u->tok_in + u->tok_out, tk, sizeof(tk)); fmt_tokens(u->tok_in, ti, sizeof(ti)); fmt_tokens(u->tok_out, to, sizeof(to));
     snprintf(sub, sizeof(sub), _("%s entrada · %s salida"), ti, to);
-    stat_box(14, 116, 182, _("Tokens hoy"), tk, sub, T.text, a);
+    stat_box(14, 146, 182, _("Tokens hoy"), tk, sub, T.text, a);
     if (u->last_time) {
         int ago = (int)((osGetTime() - u->last_time) / 1000);
         if (ago < 60) snprintf(sub, sizeof(sub), _("hace %d s"), ago);
@@ -1446,15 +1471,15 @@ static void draw_usage_top(SheetItem *it, float a) {
         else snprintf(sub, sizeof(sub), _("hace %d h"), ago / 3600);
         if (u->last_code == 200 && u->last_ms > 0) snprintf(v, sizeof(v), "%.1f s", u->last_ms / 1000.0f);
         else snprintf(v, sizeof(v), u->last_code == 200 ? "OK" : "Error %d", u->last_code);
-        stat_box(204, 116, 182, _("Última respuesta"), v, sub, u->last_code == 200 ? T.text : T.danger, a);
+        stat_box(204, 146, 182, _("Última respuesta"), v, sub, u->last_code == 200 ? T.text : T.danger, a);
     } else {
-        stat_box(204, 116, 182, _("Última respuesta"), "—", _("Sin peticiones en esta sesión"), T.text3, a);
+        stat_box(204, 146, 182, _("Última respuesta"), "—", _("Sin peticiones en esta sesión"), T.text3, a);
     }
     int ps = gem_model_paused(u->id);
     char note[200];
     if (ps) snprintf(note, sizeof(note), _("En pausa %d min: iba lento o saturado; los modos automáticos usan otro mientras tanto."), (ps + 59) / 60);
     else snprintf(note, sizeof(note), "%s", reset);
-    text_wrap_lines(note, 364, 0.43f, 3, 18, 184, col_alpha(T.text3, a), true);
+    text_wrap_lines(note, 364, 0.42f, 2, 18, 210, col_alpha(T.text3, a), true);
 }
 
 // información contextual en la pantalla superior mientras hay una hoja abierta
