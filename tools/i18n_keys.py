@@ -1,3 +1,5 @@
+# Gemi3DS - Copyright (C) 2026 VENOMSHiNE - https://github.com/venomshine/Gemi3DS
+# Software libre bajo la GNU GPL v3 con términos adicionales de atribución. Consulta LICENSE y NOTICE.md.
 # Extrae las claves de traducción (_("…") / tr("…")) tras el preprocesador
 import re, subprocess, sys, os, glob, json
 src = os.path.join(os.path.dirname(__file__), '..', 'source')

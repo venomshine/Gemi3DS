@@ -1,3 +1,10 @@
+/*
+ * Gemi3DS - cliente de Gemini AI para Nintendo 3DS
+ * Copyright (C) 2026 VENOMSHiNE - https://github.com/venomshine/Gemi3DS
+ *
+ * Software libre bajo la GNU General Public License v3 con términos adicionales
+ * de atribución (sección 7). Consulta LICENSE y NOTICE.md.
+ */
 // Gemi3DS - traducciones. La tabla se genera con tools/i18n.py -> i18n_tab.h
 #include <3ds.h>
 #include <string.h>

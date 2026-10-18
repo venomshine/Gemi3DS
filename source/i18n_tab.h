@@ -1,3 +1,4 @@
+/* Gemi3DS - Copyright (C) 2026 VENOMSHiNE - GPL-3.0 con términos adicionales (ver LICENSE y NOTICE.md) */
 // generado por tools/gen_i18n.py - no editar a mano
 static const TrEntry TR_TAB[] = {
     {"Rápido",

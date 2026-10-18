@@ -138,4 +138,15 @@ Hecho por **VENOMSHiNE** · [GitHub](https://github.com/venomshine) · [Discord]
 
 Gemi3DS es un proyecto no oficial y no está afiliado a Google. Gemini es una marca de Google LLC. *Gemi3DS is an unofficial project, not affiliated with Google.*
 
-Licencia: [MIT](LICENSE). Incluye cJSON (MIT), QR Code generator de Project Nayuki (MIT), stb_image (dominio público / MIT) y los certificados raíz de Mozilla (MPL 2.0).
+## Licencia
+
+Gemi3DS es software libre bajo la **[GNU GPL v3](LICENSE)** con términos adicionales de atribución ([NOTICE.md](NOTICE.md)):
+
+- Puedes usar, estudiar y modificar el código, pero lo que hagas con él también debe ser de código abierto bajo la GPL-3.0.
+- **Debes dar crédito visible** en tu README y en la pantalla de créditos o «Acerca de» de tu app:
+  > Basado en Gemi3DS de VENOMSHiNE — https://github.com/venomshine/Gemi3DS
+- No puedes presentarlo como tuyo, y las versiones modificadas deben indicar que lo son.
+
+*License: GNU GPL v3 with additional attribution terms — see [NOTICE.md](NOTICE.md).*
+
+Incluye cJSON (MIT), QR Code generator de Project Nayuki (MIT), stb_image (dominio público / MIT) y los certificados raíz de Mozilla (MPL 2.0), que conservan sus licencias.

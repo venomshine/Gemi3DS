@@ -2,6 +2,8 @@
 
 ## Próxima versión (pendiente)
 
+- Licencia cambiada de MIT a GNU GPL v3 con atribución obligatoria (ver NOTICE.md).
+
 - Corregir el sonido del banner en el menú HOME.
 - Corregir la vista previa de la cámara, que a veces se congela.
 
